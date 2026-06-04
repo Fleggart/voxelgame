@@ -31,7 +31,7 @@ dependencies {
 }
 
 application {
-    mainClass = "com.mojang.rubydung.RubyDung"
+    mainClass = "com.voxelengine.VoxelGame"
 }
 
 tasks.withType<JavaCompile> {

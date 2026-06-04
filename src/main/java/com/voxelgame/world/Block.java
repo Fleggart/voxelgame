@@ -1,5 +1,7 @@
 package com.voxelgame.world;
 
+import com.voxelgame.world.MeshBuilder;
+
 public class Block {
    public static final Block[] BLOCKS = new Block[256];
    public static final Block ROCK = new Block(0);
@@ -30,7 +32,8 @@ public class Block {
       renderFace(t, world, layer, x, y, z, 5, u0, u1, 2); // X+
    }
    
-   private void renderFace(MeshBuilder t, World world, int layer, int x, int y, int z, 
+   // 改为 public，供 WorldRenderer 调用
+   public void renderFace(MeshBuilder t, World world, int layer, int x, int y, int z, 
                            int face, float u0, float u1, int brightnessIndex) {
       int[] dx = {0, 0, 0, 0, -1, 1};
       int[] dy = {-1, 1, 0, 0, 0, 0};
@@ -50,6 +53,25 @@ public class Block {
                t.vertex(v[0], v[1], v[2]);
             }
          }
+      }
+   }
+   
+   // 简化版 renderFace，供 WorldRenderer.pick() 和 renderHit() 调用
+   // 注意：这个版本的参数数量与原始代码匹配
+   public void renderFace(MeshBuilder t, int x, int y, int z, int face) {
+      float u0 = tex / 16.0f;
+      float u1 = u0 + 0.0624375f;
+      float x0 = x, x1 = x + 1;
+      float y0 = y, y1 = y + 1;
+      float z0 = z, z1 = z + 1;
+      
+      // 设置默认颜色（白色）
+      t.color(1.0f, 1.0f, 1.0f);
+      
+      float[][] vertices = getFaceVertices(x, y, z, face);
+      for (float[] v : vertices) {
+         t.tex(u0 + v[3] * 0.0624375f, v[4] * 0.0624375f);
+         t.vertex(v[0], v[1], v[2]);
       }
    }
    

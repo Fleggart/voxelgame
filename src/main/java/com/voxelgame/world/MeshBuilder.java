@@ -1,4 +1,4 @@
-package com.voxelengine.world;
+package com.voxelgame.world;
 
 import java.nio.FloatBuffer;
 import org.lwjgl.BufferUtils;
@@ -26,30 +26,24 @@ public class MeshBuilder {
       if (this.hasTexture) {
          GL11.glTexCoordPointer(2, 0, this.texCoordBuffer);
       }
-
       if (this.hasColor) {
          GL11.glColorPointer(3, 0, this.colorBuffer);
       }
-
       GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
       if (this.hasTexture) {
          GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
       }
-
       if (this.hasColor) {
          GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
       }
-
       GL11.glDrawArrays(GL11.GL_QUADS, 0, this.vertices);
       GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
       if (this.hasTexture) {
          GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
       }
-
       if (this.hasColor) {
          GL11.glDisableClientState(GL11.GL_COLOR_ARRAY);
       }
-
       this.clear();
    }
 
@@ -84,11 +78,9 @@ public class MeshBuilder {
       if (this.hasTexture) {
          this.texCoordBuffer.put(this.vertices * 2 + 0, this.u).put(this.vertices * 2 + 1, this.v);
       }
-
       if (this.hasColor) {
          this.colorBuffer.put(this.vertices * 3 + 0, this.r).put(this.vertices * 3 + 1, this.g).put(this.vertices * 3 + 2, this.b);
       }
-
       ++this.vertices;
       if (this.vertices == MAX_VERTICES) {
          this.flush();

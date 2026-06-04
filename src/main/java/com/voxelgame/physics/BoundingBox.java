@@ -1,4 +1,4 @@
-package com.voxelengine.physics;
+package com.voxelgame.physics;
 
 public class BoundingBox {
    private float epsilon = 0.0F;
@@ -28,27 +28,21 @@ public class BoundingBox {
       if (xa < 0.0F) {
          _x0 += xa;
       }
-
       if (xa > 0.0F) {
          _x1 += xa;
       }
-
       if (ya < 0.0F) {
          _y0 += ya;
       }
-
       if (ya > 0.0F) {
          _y1 += ya;
       }
-
       if (za < 0.0F) {
          _z0 += za;
       }
-
       if (za > 0.0F) {
          _z1 += za;
       }
-
       return new BoundingBox(_x0, _y0, _z0, _x1, _y1, _z1);
    }
 
@@ -71,14 +65,12 @@ public class BoundingBox {
                   xa = max;
                }
             }
-
             if (xa < 0.0F && c.x0 >= this.x1) {
                float max = this.x1 - c.x0 + this.epsilon;
                if (max > xa) {
                   xa = max;
                }
             }
-
             return xa;
          } else {
             return xa;
@@ -97,14 +89,12 @@ public class BoundingBox {
                   ya = max;
                }
             }
-
             if (ya < 0.0F && c.y0 >= this.y1) {
                float max = this.y1 - c.y0 + this.epsilon;
                if (max > ya) {
                   ya = max;
                }
             }
-
             return ya;
          } else {
             return ya;
@@ -123,14 +113,12 @@ public class BoundingBox {
                   za = max;
                }
             }
-
             if (za < 0.0F && c.z0 >= this.z1) {
                float max = this.z1 - c.z0 + this.epsilon;
                if (max > za) {
                   za = max;
                }
             }
-
             return za;
          } else {
             return za;

@@ -26,12 +26,21 @@ public class VoxelGame implements Runnable {
     private World world;
     private WorldRenderer worldRenderer;
     private Player player;
-    private IntBuffer viewportBuffer = BufferUtils.createIntBuffer(16);
-    private IntBuffer selectBuffer = BufferUtils.createIntBuffer(2000);
+    private IntBuffer viewportBuffer;
+    private IntBuffer selectBuffer;
     private HitResult hitResult = null;
 
     public void init() throws LWJGLException, IOException {
         System.out.println("INIT A");
+
+        this.fogColor = BufferUtils.createFloatBuffer(4);
+
+        System.out.println("INIT A1");
+
+        this.viewportBuffer = BufferUtils.createIntBuffer(16);
+        this.selectBuffer = BufferUtils.createIntBuffer(2000);
+
+        System.out.println("INIT A2");
 
         int col = 920330;
         float fr = 0.5F;

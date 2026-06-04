@@ -1,4 +1,3 @@
-
 package com.voxelgame;
 
 import com.voxelgame.world.Chunk;
@@ -34,6 +33,15 @@ public class VoxelGame implements Runnable {
     public void init() throws LWJGLException, IOException {
         System.out.println("INIT A");
 
+        Display.setDisplayMode(new DisplayMode(1280, 720));
+        System.out.println("INIT B");
+
+        Display.create();
+        System.out.println("INIT C");
+
+        GL11.glViewport(0, 0, 1280, 720);
+        System.out.println("INIT D");
+
         this.fogColor = BufferUtils.createFloatBuffer(4);
 
         System.out.println("INIT A1");
@@ -57,15 +65,7 @@ public class VoxelGame implements Runnable {
 
         this.fogColor.flip();
 
-        System.out.println("INIT B");
-
-        Display.setDisplayMode(new DisplayMode(1024, 768));
-
-        System.out.println("INIT C");
-
-        Display.create();
-
-        System.out.println("INIT D");
+        System.out.println("INIT E");
 
         //Keyboard.create();
         System.out.println("SKIP KEYBOARD");
@@ -76,8 +76,6 @@ public class VoxelGame implements Runnable {
         System.out.println("SKIP MOUSE");
 
         System.out.println("INIT A4");
-
-        System.out.println("INIT E");
 
         System.out.println("INIT F");
 

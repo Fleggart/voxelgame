@@ -1,6 +1,6 @@
 package com.voxelengine.world;
 
-import com.voxelengine.HitResult;
+import com.voxelgame.HitResult;
 import com.voxelengine.Player;
 import com.voxelengine.physics.BoundingBox;
 import org.lwjgl.opengl.GL11;

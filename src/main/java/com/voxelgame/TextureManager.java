@@ -1,4 +1,4 @@
-package com.voxelengine;
+package com.voxelgame;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

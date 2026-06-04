@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     implementation("org.lwjgl.lwjgl:lwjgl:2.9.3") {
-        exclude group: "net.java.jinput"
+        exclude("net.java.jinput", "jinput")  // 修正：使用两个参数的 exclude
     }
     implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.3")
     runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux")

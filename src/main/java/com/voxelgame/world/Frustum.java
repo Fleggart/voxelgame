@@ -1,6 +1,6 @@
-package com.voxelengine.world;
+package com.voxelgame.world;
 
-import com.voxelengine.physics.BoundingBox;
+import com.voxelgame.physics.BoundingBox;
 import java.nio.FloatBuffer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
@@ -105,7 +105,6 @@ public class Frustum {
             return false;
          }
       }
-
       return true;
    }
 
@@ -115,7 +114,6 @@ public class Frustum {
             return false;
          }
       }
-
       return true;
    }
 
@@ -124,36 +122,28 @@ public class Frustum {
          if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
-
          if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
             return false;
          }
       }
-
       return true;
    }
 
@@ -163,7 +153,6 @@ public class Frustum {
             return false;
          }
       }
-
       return true;
    }
 

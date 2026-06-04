@@ -10,80 +10,69 @@ public class MeshBuilder {
    private FloatBuffer texCoordBuffer = BufferUtils.createFloatBuffer(200000);
    private FloatBuffer colorBuffer = BufferUtils.createFloatBuffer(300000);
    private int vertices = 0;
-   private float u;
-   private float v;
-   private float r;
-   private float g;
-   private float b;
+   private float u, v, r, g, b;
    private boolean hasColor = false;
    private boolean hasTexture = false;
 
    public void flush() {
-      this.vertexBuffer.flip();
-      this.texCoordBuffer.flip();
-      this.colorBuffer.flip();
-      GL11.glVertexPointer(3, 0, this.vertexBuffer);
-      if (this.hasTexture) {
-         GL11.glTexCoordPointer(2, 0, this.texCoordBuffer);
-      }
-      if (this.hasColor) {
-         GL11.glColorPointer(3, 0, this.colorBuffer);
-      }
+      vertexBuffer.flip();
+      texCoordBuffer.flip();
+      colorBuffer.flip();
+      
+      GL11.glVertexPointer(3, 0, vertexBuffer);
+      if (hasTexture) GL11.glTexCoordPointer(2, 0, texCoordBuffer);
+      if (hasColor) GL11.glColorPointer(3, 0, colorBuffer);
+      
       GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-      if (this.hasTexture) {
-         GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-      }
-      if (this.hasColor) {
-         GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
-      }
-      GL11.glDrawArrays(GL11.GL_QUADS, 0, this.vertices);
+      if (hasTexture) GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+      if (hasColor) GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
+      
+      GL11.glDrawArrays(GL11.GL_QUADS, 0, vertices);
+      
       GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
-      if (this.hasTexture) {
-         GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-      }
-      if (this.hasColor) {
-         GL11.glDisableClientState(GL11.GL_COLOR_ARRAY);
-      }
-      this.clear();
+      if (hasTexture) GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+      if (hasColor) GL11.glDisableClientState(GL11.GL_COLOR_ARRAY);
+      
+      clear();
    }
 
    private void clear() {
-      this.vertices = 0;
-      this.vertexBuffer.clear();
-      this.texCoordBuffer.clear();
-      this.colorBuffer.clear();
+      vertices = 0;
+      vertexBuffer.clear();
+      texCoordBuffer.clear();
+      colorBuffer.clear();
    }
 
    public void init() {
-      this.clear();
-      this.hasColor = false;
-      this.hasTexture = false;
+      clear();
+      hasColor = false;
+      hasTexture = false;
    }
 
    public void tex(float u, float v) {
-      this.hasTexture = true;
+      hasTexture = true;
       this.u = u;
       this.v = v;
    }
 
    public void color(float r, float g, float b) {
-      this.hasColor = true;
+      hasColor = true;
       this.r = r;
       this.g = g;
       this.b = b;
    }
 
    public void vertex(float x, float y, float z) {
-      this.vertexBuffer.put(this.vertices * 3 + 0, x).put(this.vertices * 3 + 1, y).put(this.vertices * 3 + 2, z);
-      if (this.hasTexture) {
-         this.texCoordBuffer.put(this.vertices * 2 + 0, this.u).put(this.vertices * 2 + 1, this.v);
+      vertexBuffer.put(vertices * 3, x).put(vertices * 3 + 1, y).put(vertices * 3 + 2, z);
+      if (hasTexture) {
+         texCoordBuffer.put(vertices * 2, u).put(vertices * 2 + 1, v);
       }
-      if (this.hasColor) {
-         this.colorBuffer.put(this.vertices * 3 + 0, this.r).put(this.vertices * 3 + 1, this.g).put(this.vertices * 3 + 2, this.b);
+      if (hasColor) {
+         colorBuffer.put(vertices * 3, r).put(vertices * 3 + 1, g).put(vertices * 3 + 2, b);
       }
-      ++this.vertices;
-      if (this.vertices == MAX_VERTICES) {
-         this.flush();
+      
+      if (++vertices == MAX_VERTICES) {
+         flush();
       }
    }
 }

@@ -24,14 +24,10 @@ dependencies {
     implementation("net.java.jinput:jinput:2.0.5")
     
     // 原生库（运行时）
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-windows")
     runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-linux")
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-macos")
     
     // JInput 原生库
-    runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-windows")
     runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-linux")
-    runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-macos")
 }
 
 application {

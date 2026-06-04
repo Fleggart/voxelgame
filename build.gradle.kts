@@ -7,8 +7,8 @@ group = "com.voxelgame"
 version = "1.0.0"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 repositories {
@@ -16,18 +16,15 @@ repositories {
 }
 
 dependencies {
-    implementation("org.lwjgl.lwjgl:lwjgl:2.9.0")
-    implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.0")
-    implementation("net.java.jinput:jinput:2.0.5")
+    implementation("org.lwjgl.lwjgl:lwjgl:2.9.3") {
+        exclude group: "net.java.jinput"
+    }
+    implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.3")
     
     // 只包含 Linux 和 Windows 的原生库（跳过 macOS）
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-windows")
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-linux")
-    // runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-macos")  // 注释掉
-    
-    runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-windows")
-    runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-linux")
-    // runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-macos")  // 注释掉
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-windows")
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux")
+    // runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-macos")  // 注释掉
 }
 
 application {
@@ -56,9 +53,6 @@ tasks.register<Jar>("fatJar") {
     
     // 排除原生库文件（避免冲突）
     exclude("**/liblwjgl*.so")
-    exclude("**/libjinput*.so")
     exclude("**/lwjgl*.dll")
-    exclude("**/jinput*.dll")
     exclude("**/liblwjgl*.dylib")
-    exclude("**/libjinput*.dylib")
 }

@@ -1,4 +1,4 @@
-package com.voxelengine.world;
+package com.voxelgame.world;
 
 import com.voxelengine.TextureManager;
 import com.voxelengine.physics.BoundingBox;

@@ -69,9 +69,9 @@ public class WorldRenderer implements WorldListener {
                         for (int i = 0; i < 6; i++) {
                             GL11.glPushName(i);
                             
-                            // 直接使用立即模式渲染，避免缓冲区问题
+                            // 使用立即模式渲染，用 STONE 代替 ROCK
                             GL11.glBegin(GL11.GL_QUADS);
-                            Block.ROCK.renderFaceImmediate(x, y, z, i);
+                            Block.STONE.renderFaceImmediate(x, y, z, i);
                             GL11.glEnd();
                             
                             GL11.glPopName();
@@ -90,9 +90,9 @@ public class WorldRenderer implements WorldListener {
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, (float)Math.sin(System.currentTimeMillis() / 100.0) * 0.2F + 0.4F);
         
-        // 使用立即模式渲染高亮方块
+        // 使用立即模式渲染高亮方块，用 STONE 代替 ROCK
         GL11.glBegin(GL11.GL_QUADS);
-        Block.ROCK.renderFaceImmediate(h.x, h.y, h.z, h.f);
+        Block.STONE.renderFaceImmediate(h.x, h.y, h.z, h.f);
         GL11.glEnd();
         
         GL11.glDisable(GL11.GL_BLEND);

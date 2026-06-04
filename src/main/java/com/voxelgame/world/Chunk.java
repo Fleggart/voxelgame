@@ -6,7 +6,6 @@ import java.nio.FloatBuffer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
-import org.lwjgl.opengl.GL20;
 
 public class Chunk {
     private static final int TEXTURE = TextureManager.loadTexture("/textures/terrain.png", 9728);
@@ -43,7 +42,8 @@ public class Chunk {
             for (int y = y0; y < y1; y++) {
                 for (int z = z0; z < z1; z++) {
                     if (world.isBlock(x, y, z)) {
-                        Block block = (y == grassLevel || y > grassLevel + 5) ? Block.GRASS : Block.ROCK;
+                        // y >= grassLevel 为草，否则为石头
+                        Block block = (y >= grassLevel) ? Block.GRASS : Block.STONE;
                         block.render(meshBuilder, world, layer, x, y, z);
                     }
                 }
@@ -103,17 +103,17 @@ public class Chunk {
         
         // 绑定顶点数据
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, layerVBOs[layer]);
-        GL11.glVertexPointer(3, GL11.GL_FLOAT, 0, 0);
+        GL11.glVertexPointer(3, GL11.GL_FLOAT, 0, 0L);
         GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
         
         // 绑定纹理坐标
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, layerTexVBOs[layer]);
-        GL11.glTexCoordPointer(2, GL11.GL_FLOAT, 0, 0);
+        GL11.glTexCoordPointer(2, GL11.GL_FLOAT, 0, 0L);
         GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
         
         // 绑定颜色数据
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, layerColorVBOs[layer]);
-        GL11.glColorPointer(3, GL11.GL_FLOAT, 0, 0);
+        GL11.glColorPointer(3, GL11.GL_FLOAT, 0, 0L);
         GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
         
         // 绘制

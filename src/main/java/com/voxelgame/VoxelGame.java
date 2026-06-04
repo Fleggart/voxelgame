@@ -1,3 +1,4 @@
+
 package com.voxelgame;
 
 import com.voxelgame.world.Chunk;
@@ -66,11 +67,17 @@ public class VoxelGame implements Runnable {
 
         System.out.println("INIT D");
 
-        Keyboard.create();
+        //Keyboard.create();
+        System.out.println("SKIP KEYBOARD");
+
+        System.out.println("INIT A3");
+
+        //Mouse.create();
+        System.out.println("SKIP MOUSE");
+
+        System.out.println("INIT A4");
 
         System.out.println("INIT E");
-
-        Mouse.create();
 
         System.out.println("INIT F");
 
@@ -121,7 +128,7 @@ public class VoxelGame implements Runnable {
 
         System.out.println("INIT Q");
 
-        Mouse.setGrabbed(true);
+        //Mouse.setGrabbed(true);
 
         System.out.println("INIT R");
     }

@@ -65,7 +65,7 @@ public class VoxelGame implements Runnable {
         GL11.glLoadIdentity();
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         
-        // 加载Shader
+        // 加载Shader (可选)
         try {
             shader = new ShaderProgram("/vertex.glsl", "/fragment.glsl");
             System.out.println("Shaders loaded successfully");
@@ -75,8 +75,8 @@ public class VoxelGame implements Runnable {
             shader = null;
         }
         
-        // 设置纹理单元
-        GL11.glActiveTexture(GL13.GL_TEXTURE0);
+        // 设置纹理单元 - 修复：使用 GL13 而不是 GL11
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
         
         this.world = new World(256, 256, 64);
         this.worldRenderer = new WorldRenderer(this.world);
@@ -87,6 +87,9 @@ public class VoxelGame implements Runnable {
     public void destroy() {
         if (shader != null) {
             shader.cleanup();
+        }
+        if (worldRenderer != null) {
+            worldRenderer.cleanup();
         }
         this.world.save();
         Mouse.destroy();
@@ -243,14 +246,6 @@ public class VoxelGame implements Runnable {
         // 使用Shader
         if (shader != null) {
             shader.use();
-            
-            // 设置uniform变量
-            FloatBuffer projMatrix = BufferUtils.createFloatBuffer(16);
-            GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, projMatrix);
-            
-            FloatBuffer mvMatrix = BufferUtils.createFloatBuffer(16);
-            GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, mvMatrix);
-            
             shader.setUniform("hasTexture", 1);
             shader.setUniform("hasColor", 1);
         }

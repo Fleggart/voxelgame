@@ -342,7 +342,20 @@ public class VoxelGame implements Runnable {
         }
     }
 
-    public static void main(String[] args) throws LWJGLException {
-        (new Thread(new VoxelGame())).start();
+    public static void main(String[] args) {
+        System.out.println("MAIN START");
+
+        VoxelGame game = new VoxelGame();
+
+        System.out.println("MAIN AFTER CONSTRUCTOR");
+
+        while (true) {
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+            }
+
+            System.out.println("ALIVE");
+        }
     }
 }

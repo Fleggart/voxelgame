@@ -20,14 +20,14 @@ dependencies {
     implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.0")
     implementation("net.java.jinput:jinput:2.0.5")
     
-    // 原生库 - 需要根据平台选择
+    // 只包含 Linux 和 Windows 的原生库（跳过 macOS）
     runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-windows")
     runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-linux")
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-macos")
+    // runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-macos")  // 注释掉
     
     runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-windows")
     runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-linux")
-    runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-macos")
+    // runtimeOnly("net.java.jinput:jinput-platform:2.0.5:natives-macos")  // 注释掉
 }
 
 application {
@@ -38,7 +38,7 @@ tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
-// 这个任务会创建一个包含所有依赖的 JAR（包括原生库）
+// 可选：创建 fat JAR
 tasks.register<Jar>("fatJar") {
     archiveClassifier.set("all")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

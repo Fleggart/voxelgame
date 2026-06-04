@@ -1,11 +1,7 @@
 package com.voxelgame.world;
 
 import com.voxelgame.physics.BoundingBox;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
@@ -17,7 +13,6 @@ public class World {
     private final int[] lightDepths;
     private final List<WorldListener> listeners = new ArrayList<>();
     
-    // 预计算索引偏移量
     private final int yzSize;
     private final int zSize;
 
@@ -30,7 +25,6 @@ public class World {
         this.blocks = new byte[w * h * d];
         this.lightDepths = new int[w * h];
         
-        // 初始化地形
         int grassLevel = d * 2 / 3;
         for (int x = 0; x < w; x++) {
             for (int z = 0; z < h; z++) {
@@ -44,7 +38,6 @@ public class World {
         load();
     }
     
-    // 快速索引计算
     private int index(int x, int y, int z) {
         return (y * zSize + z) * width + x;
     }
@@ -69,11 +62,12 @@ public class World {
     
     public void calcLightDepths(int x0, int z0, int w, int h) {
         for (int x = x0; x < x0 + w; x++) {
+            int baseIdx = x + z0 * width;
             for (int z = z0; z < z0 + h; z++) {
-                int idx = x + z * width;
+                int idx = baseIdx + (z - z0);
                 int oldDepth = lightDepths[idx];
-                int y;
-                for (y = depth - 1; y > 0 && !isLightBlocker(x, y, z); y--);
+                int y = depth - 1;
+                while (y > 0 && !isLightBlocker(x, y, z)) y--;
                 lightDepths[idx] = y;
                 
                 if (oldDepth != y) {
@@ -100,7 +94,6 @@ public class World {
         return isBlock(x, y, z); 
     }
     
-    // 简化碰撞盒获取
     public List<BoundingBox> getCubes(BoundingBox aabb) {
         List<BoundingBox> boxes = new ArrayList<>();
         int x0 = Math.max(0, (int)aabb.x0);
@@ -123,24 +116,20 @@ public class World {
     }
     
     public void load() {
-        try {
-            DataInputStream dis = new DataInputStream(new GZIPInputStream(new FileInputStream(new File("world.dat"))));
+        try (DataInputStream dis = new DataInputStream(new GZIPInputStream(new FileInputStream(new File("world.dat"))))) {
             dis.readFully(this.blocks);
             this.calcLightDepths(0, 0, this.width, this.height);
             for (WorldListener l : listeners) {
                 l.allChanged();
             }
-            dis.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
     
     public void save() {
-        try {
-            DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(new File("world.dat"))));
+        try (DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(new File("world.dat"))))) {
             dos.write(this.blocks);
-            dos.close();
         } catch (Exception e) {
             e.printStackTrace();
         }

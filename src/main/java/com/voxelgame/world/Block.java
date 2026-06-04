@@ -1,7 +1,5 @@
 package com.voxelgame.world;
 
-import com.voxelgame.world.MeshBuilder;
-
 public class Block {
    public static final Block[] BLOCKS = new Block[256];
    public static final Block ROCK = new Block(0);
@@ -14,32 +12,43 @@ public class Block {
       {0.6f, 0.6f, 0.6f}
    };
    
-   // 纹理图集参数：256x256 图片，16x16 格子，每个格子 16x16 像素
    private static final float TEXTURE_SIZE = 256.0f;
    private static final float TILE_SIZE = 16.0f;
-   private static final float TILE_U = TILE_SIZE / TEXTURE_SIZE;  // = 0.0625f
+   private static final float TILE_U = TILE_SIZE / TEXTURE_SIZE;
+   
+   // 预定义所有面的顶点数据（相对坐标+UV）
+   private static final float[][][] FACE_VERTICES = {
+      {{0,0,1,0,1},{0,0,0,0,0},{1,0,0,1,0},{1,0,1,1,1}}, // Y-
+      {{1,1,1,1,1},{1,1,0,1,0},{0,1,0,0,0},{0,1,1,0,1}}, // Y+
+      {{0,1,0,1,0},{1,1,0,0,0},{1,0,0,0,1},{0,0,0,1,1}}, // Z-
+      {{0,1,1,0,0},{0,0,1,0,1},{1,0,1,1,1},{1,1,1,1,0}}, // Z+
+      {{0,1,1,1,0},{0,1,0,0,0},{0,0,0,0,1},{0,0,1,1,1}}, // X-
+      {{1,0,1,0,1},{1,0,0,1,1},{1,1,0,1,0},{1,1,1,0,0}}  // X+
+   };
 
    private Block(int tex) {
       this.tex = tex;
       BLOCKS[tex] = this;
    }
    
-   public void render(MeshBuilder t, World world, int layer, int x, int y, int z) {
-      // 计算纹理坐标：每个格子的 uv 范围
+   private float[] getTexCoords() {
       int tileX = tex % 16;
       int tileY = tex / 16;
       float u0 = tileX * TILE_U;
       float u1 = u0 + TILE_U;
       float v0 = tileY * TILE_U;
       float v1 = v0 + TILE_U;
+      return new float[]{u0, u1, v0, v1};
+   }
+   
+   public void render(MeshBuilder t, World world, int layer, int x, int y, int z) {
+      float[] uv = getTexCoords();
+      float u0 = uv[0], u1 = uv[1], v0 = uv[2], v1 = uv[3];
       
-      // 统一处理6个面
-      renderFace(t, world, layer, x, y, z, 0, u0, u1, v0, v1, 0); // Y-
-      renderFace(t, world, layer, x, y, z, 1, u0, u1, v0, v1, 0); // Y+
-      renderFace(t, world, layer, x, y, z, 2, u0, u1, v0, v1, 1); // Z-
-      renderFace(t, world, layer, x, y, z, 3, u0, u1, v0, v1, 1); // Z+
-      renderFace(t, world, layer, x, y, z, 4, u0, u1, v0, v1, 2); // X-
-      renderFace(t, world, layer, x, y, z, 5, u0, u1, v0, v1, 2); // X+
+      for (int face = 0; face < 6; face++) {
+         int brightnessIndex = face >= 4 ? 2 : (face >= 2 ? 1 : 0);
+         renderFace(t, world, layer, x, y, z, face, u0, u1, v0, v1, brightnessIndex);
+      }
    }
    
    private void renderFace(MeshBuilder t, World world, int layer, int x, int y, int z, 
@@ -58,7 +67,6 @@ public class Block {
             t.color(br, br, br);
             float[][] vertices = getFaceVertices(x, y, z, face);
             for (float[] v : vertices) {
-               // v[3] 是 0-1 的水平纹理坐标，v[4] 是 0-1 的垂直纹理坐标
                float u = u0 + v[3] * (u1 - u0);
                float vv = v0 + v[4] * (v1 - v0);
                t.tex(u, vv);
@@ -68,32 +76,12 @@ public class Block {
       }
    }
    
-   // 供 WorldRenderer.pick() 和 renderHit() 调用
    public void renderFace(MeshBuilder t, int x, int y, int z, int face) {
-      // 计算纹理坐标
-      int tileX = tex % 16;
-      int tileY = tex / 16;
-      float u0 = tileX * TILE_U;
-      float u1 = u0 + TILE_U;
-      float v0 = tileY * TILE_U;
-      float v1 = v0 + TILE_U;
-      
-      float x0 = x, x1 = x + 1;
-      float y0 = y, y1 = y + 1;
-      float z0 = z, z1 = z + 1;
+      float[] uv = getTexCoords();
+      float u0 = uv[0], u1 = uv[1], v0 = uv[2], v1 = uv[3];
       
       t.color(1.0f, 1.0f, 1.0f);
-      
-      float[][][] faces = {
-         {{x0, y0, z1, 0, 1}, {x0, y0, z0, 0, 0}, {x1, y0, z0, 1, 0}, {x1, y0, z1, 1, 1}},
-         {{x1, y1, z1, 1, 1}, {x1, y1, z0, 1, 0}, {x0, y1, z0, 0, 0}, {x0, y1, z1, 0, 1}},
-         {{x0, y1, z0, 1, 0}, {x1, y1, z0, 0, 0}, {x1, y0, z0, 0, 1}, {x0, y0, z0, 1, 1}},
-         {{x0, y1, z1, 0, 0}, {x0, y0, z1, 0, 1}, {x1, y0, z1, 1, 1}, {x1, y1, z1, 1, 0}},
-         {{x0, y1, z1, 1, 0}, {x0, y1, z0, 0, 0}, {x0, y0, z0, 0, 1}, {x0, y0, z1, 1, 1}},
-         {{x1, y0, z1, 0, 1}, {x1, y0, z0, 1, 1}, {x1, y1, z0, 1, 0}, {x1, y1, z1, 0, 0}}
-      };
-      
-      float[][] vertices = faces[face];
+      float[][] vertices = getFaceVertices(x, y, z, face);
       for (float[] v : vertices) {
          float u = u0 + v[3] * (u1 - u0);
          float vv = v0 + v[4] * (v1 - v0);
@@ -103,18 +91,15 @@ public class Block {
    }
    
    private float[][] getFaceVertices(int x, int y, int z, int face) {
-      float x0 = x, x1 = x + 1;
-      float y0 = y, y1 = y + 1;
-      float z0 = z, z1 = z + 1;
-      
-      float[][][] faces = {
-         {{x0, y0, z1, 0, 1}, {x0, y0, z0, 0, 0}, {x1, y0, z0, 1, 0}, {x1, y0, z1, 1, 1}},
-         {{x1, y1, z1, 1, 1}, {x1, y1, z0, 1, 0}, {x0, y1, z0, 0, 0}, {x0, y1, z1, 0, 1}},
-         {{x0, y1, z0, 1, 0}, {x1, y1, z0, 0, 0}, {x1, y0, z0, 0, 1}, {x0, y0, z0, 1, 1}},
-         {{x0, y1, z1, 0, 0}, {x0, y0, z1, 0, 1}, {x1, y0, z1, 1, 1}, {x1, y1, z1, 1, 0}},
-         {{x0, y1, z1, 1, 0}, {x0, y1, z0, 0, 0}, {x0, y0, z0, 0, 1}, {x0, y0, z1, 1, 1}},
-         {{x1, y0, z1, 0, 1}, {x1, y0, z0, 1, 1}, {x1, y1, z0, 1, 0}, {x1, y1, z1, 0, 0}}
-      };
-      return faces[face];
+      float[][] verts = new float[4][5];
+      float[][] template = FACE_VERTICES[face];
+      for (int i = 0; i < 4; i++) {
+         verts[i][0] = x + template[i][0];
+         verts[i][1] = y + template[i][1];
+         verts[i][2] = z + template[i][2];
+         verts[i][3] = template[i][3];
+         verts[i][4] = template[i][4];
+      }
+      return verts;
    }
 }

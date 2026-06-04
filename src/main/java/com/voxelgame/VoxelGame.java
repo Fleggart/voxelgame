@@ -1,4 +1,4 @@
-package com.voxelengine;
+package com.voxelgame; 
 
 import com.voxelengine.world.Chunk;
 import com.voxelengine.world.World;

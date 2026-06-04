@@ -1,9 +1,11 @@
 package com.voxelgame.world;
 
+import org.lwjgl.opengl.GL11;
+
 public class Block {
    public static final Block[] BLOCKS = new Block[256];
-   public static final Block ROCK = new Block(0);
-   public static final Block GRASS = new Block(1);
+   public static final Block STONE = new Block(1);  // 石头纹理，tex=1
+   public static final Block GRASS = new Block(0);  // 草纹理，tex=0
    
    private final int tex;
    private static final float[][] BRIGHTNESS = {
@@ -18,12 +20,12 @@ public class Block {
    
    // 预定义所有面的顶点数据（相对坐标+UV）
    private static final float[][][] FACE_VERTICES = {
-      {{0,0,1,0,1},{0,0,0,0,0},{1,0,0,1,0},{1,0,1,1,1}}, // Y-
-      {{1,1,1,1,1},{1,1,0,1,0},{0,1,0,0,0},{0,1,1,0,1}}, // Y+
-      {{0,1,0,1,0},{1,1,0,0,0},{1,0,0,0,1},{0,0,0,1,1}}, // Z-
-      {{0,1,1,0,0},{0,0,1,0,1},{1,0,1,1,1},{1,1,1,1,0}}, // Z+
-      {{0,1,1,1,0},{0,1,0,0,0},{0,0,0,0,1},{0,0,1,1,1}}, // X-
-      {{1,0,1,0,1},{1,0,0,1,1},{1,1,0,1,0},{1,1,1,0,0}}  // X+
+      {{0,0,1,0,1},{0,0,0,0,0},{1,0,0,1,0},{1,0,1,1,1}}, // Y- (下)
+      {{1,1,1,1,1},{1,1,0,1,0},{0,1,0,0,0},{0,1,1,0,1}}, // Y+ (上)
+      {{0,1,0,1,0},{1,1,0,0,0},{1,0,0,0,1},{0,0,0,1,1}}, // Z- (北)
+      {{0,1,1,0,0},{0,0,1,0,1},{1,0,1,1,1},{1,1,1,1,0}}, // Z+ (南)
+      {{0,1,1,1,0},{0,1,0,0,0},{0,0,0,0,1},{0,0,1,1,1}}, // X- (西)
+      {{1,0,1,0,1},{1,0,0,1,1},{1,1,0,1,0},{1,1,1,0,0}}  // X+ (东)
    };
 
    private Block(int tex) {
@@ -87,6 +89,19 @@ public class Block {
          float vv = v0 + v[4] * (v1 - v0);
          t.tex(u, vv);
          t.vertex(v[0], v[1], v[2]);
+      }
+   }
+   
+   public void renderFaceImmediate(int x, int y, int z, int face) {
+      float[] uv = getTexCoords();
+      float u0 = uv[0], u1 = uv[1], v0 = uv[2], v1 = uv[3];
+      
+      float[][] vertices = getFaceVertices(x, y, z, face);
+      for (float[] v : vertices) {
+         float u = u0 + v[3] * (u1 - u0);
+         float vv = v0 + v[4] * (v1 - v0);
+         GL11.glTexCoord2f(u, vv);
+         GL11.glVertex3f(v[0], v[1], v[2]);
       }
    }
    

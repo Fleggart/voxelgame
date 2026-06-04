@@ -25,10 +25,11 @@ public class World {
         this.blocks = new byte[w * h * d];
         this.lightDepths = new int[w * h];
         
-        int grassLevel = d * 2 / 3;
+        int grassLevel = d * 2 / 3;  // 草地层级
         for (int x = 0; x < w; x++) {
             for (int z = 0; z < h; z++) {
                 for (int y = 0; y < d; y++) {
+                    // y <= grassLevel 为石头(1)，y > grassLevel 为草(0)
                     setBlockFast(x, y, z, y <= grassLevel ? 1 : 0);
                 }
             }
@@ -48,7 +49,7 @@ public class World {
     
     public boolean isBlock(int x, int y, int z) {
         if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return false;
-        return blocks[index(x, y, z)] == 1;
+        return blocks[index(x, y, z)] == 1;  // 1表示石头，0表示草
     }
     
     public void setBlock(int x, int y, int z, int type) {
@@ -62,9 +63,8 @@ public class World {
     
     public void calcLightDepths(int x0, int z0, int w, int h) {
         for (int x = x0; x < x0 + w; x++) {
-            int baseIdx = x + z0 * width;
             for (int z = z0; z < z0 + h; z++) {
-                int idx = baseIdx + (z - z0);
+                int idx = x + z * width;
                 int oldDepth = lightDepths[idx];
                 int y = depth - 1;
                 while (y > 0 && !isLightBlocker(x, y, z)) y--;
@@ -116,22 +116,29 @@ public class World {
     }
     
     public void load() {
-        try (DataInputStream dis = new DataInputStream(new GZIPInputStream(new FileInputStream(new File("world.dat"))))) {
+        File file = new File("world.dat");
+        if (!file.exists()) {
+            System.out.println("No save file found, generating new world");
+            return;
+        }
+        try (DataInputStream dis = new DataInputStream(new GZIPInputStream(new FileInputStream(file)))) {
             dis.readFully(this.blocks);
             this.calcLightDepths(0, 0, this.width, this.height);
             for (WorldListener l : listeners) {
                 l.allChanged();
             }
+            System.out.println("World loaded successfully");
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Failed to load world: " + e.getMessage());
         }
     }
     
     public void save() {
         try (DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(new File("world.dat"))))) {
             dos.write(this.blocks);
+            System.out.println("World saved successfully");
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Failed to save world: " + e.getMessage());
         }
     }
     

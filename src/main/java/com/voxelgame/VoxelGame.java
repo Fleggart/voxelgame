@@ -69,8 +69,9 @@ public class VoxelGame implements Runnable {
       try {
          this.init();
       } catch (Exception e) {
-         JOptionPane.showMessageDialog((Component)null, e.toString(), "Failed to start VoxelEngine", 0);
-         System.exit(0);
+    System.err.println("INIT FAILED");
+    e.printStackTrace();
+    System.exit(1);
       }
 
       long lastTime = System.currentTimeMillis();

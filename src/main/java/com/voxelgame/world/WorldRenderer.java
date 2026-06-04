@@ -3,6 +3,8 @@ package com.voxelgame.world;
 import com.voxelgame.HitResult;
 import com.voxelgame.Player;
 import com.voxelgame.physics.BoundingBox;
+import java.nio.FloatBuffer;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
 public class WorldRenderer implements WorldListener {
@@ -11,6 +13,7 @@ public class WorldRenderer implements WorldListener {
     private Chunk[] chunks;
     private int xChunks, yChunks, zChunks;
     private MeshBuilder t = new MeshBuilder();
+    private FloatBuffer tempBuffer = BufferUtils.createFloatBuffer(10000);
 
     public WorldRenderer(World world) {
         this.world = world;
@@ -65,18 +68,11 @@ public class WorldRenderer implements WorldListener {
                     if (world.isSolidBlock(x, y, z)) {
                         for (int i = 0; i < 6; i++) {
                             GL11.glPushName(i);
-                            t.init();
-                            Block.ROCK.renderFace(t, x, y, z, i);
-                            t.finish();
                             
-                            // 使用顶点数组方式绘制拾取
-                            GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-                            java.nio.FloatBuffer vertexData = t.getVertexBuffer();
-                            if (vertexData != null && vertexData.remaining() > 0) {
-                                GL11.glVertexPointer(3, GL11.GL_FLOAT, 0, vertexData);
-                                GL11.glDrawArrays(GL11.GL_QUADS, 0, t.getVertexCount());
-                            }
-                            GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+                            // 直接使用立即模式渲染，避免缓冲区问题
+                            GL11.glBegin(GL11.GL_QUADS);
+                            Block.ROCK.renderFaceImmediate(x, y, z, i);
+                            GL11.glEnd();
                             
                             GL11.glPopName();
                         }
@@ -94,18 +90,10 @@ public class WorldRenderer implements WorldListener {
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, (float)Math.sin(System.currentTimeMillis() / 100.0) * 0.2F + 0.4F);
         
-        t.init();
-        Block.ROCK.renderFace(t, h.x, h.y, h.z, h.f);
-        t.finish();
-        
-        // 渲染高亮方块
-        GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-        java.nio.FloatBuffer vertexData = t.getVertexBuffer();
-        if (vertexData != null && vertexData.remaining() > 0) {
-            GL11.glVertexPointer(3, GL11.GL_FLOAT, 0, vertexData);
-            GL11.glDrawArrays(GL11.GL_QUADS, 0, t.getVertexCount());
-        }
-        GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+        // 使用立即模式渲染高亮方块
+        GL11.glBegin(GL11.GL_QUADS);
+        Block.ROCK.renderFaceImmediate(h.x, h.y, h.z, h.f);
+        GL11.glEnd();
         
         GL11.glDisable(GL11.GL_BLEND);
     }

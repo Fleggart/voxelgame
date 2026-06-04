@@ -49,6 +49,4 @@ tasks.register<Jar>("fatJar") {
     
     // 排除原生库文件（避免冲突）
     exclude("**/liblwjgl*.so")
-    exclude("**/lwjgl*.dll")
-    exclude("**/liblwjgl*.dylib")
 }

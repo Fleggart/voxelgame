@@ -3,11 +3,9 @@ package com.voxelgame;
 import com.voxelgame.world.Chunk;
 import com.voxelgame.world.World;
 import com.voxelgame.world.WorldRenderer;
-import java.awt.Component;
 import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import javax.swing.JOptionPane;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.LWJGLException;
 import org.lwjgl.input.Keyboard;
@@ -56,7 +54,6 @@ public class VoxelGame implements Runnable {
         float fg = 0.8F;
         float fb = 1.0F;
 
-        // 使用 buffer.clear(), put(), position(0), limit(capacity()) 模式
         this.fogColor.clear();
         this.fogColor.put(new float[]{
                 (float)(col >> 16 & 255) / 255.0F,
@@ -143,24 +140,17 @@ public class VoxelGame implements Runnable {
     public void run() {
         try {
             System.out.println("STEP 1: init start");
-
             this.init();
-
             System.out.println("STEP 2: init success");
-
         } catch (Exception e) {
-
             System.err.println("================================");
             System.err.println("VoxelEngine startup failed");
             System.err.println("================================");
-
             e.printStackTrace();
-
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException ignored) {
             }
-
             return;
         }
 
@@ -191,7 +181,6 @@ public class VoxelGame implements Runnable {
             System.err.println("================================");
             System.err.println("Game loop crashed");
             System.err.println("================================");
-
             e.printStackTrace();
         } finally {
             this.destroy();
@@ -354,96 +343,7 @@ public class VoxelGame implements Runnable {
                 Thread.sleep(1000);
             } catch (Exception e) {
             }
-
             System.out.println("ALIVE");
         }
-    }
-}        long lastTime = System.currentTimeMillis();
-        int frames = 0;
-
-        System.out.println("STEP 3: entering loop");
-
-        try {
-            while (!Display.isCloseRequested() && !Keyboard.isKeyDown(1)) {
-
-                timer.advanceTime();
-
-                for (int i = 0; i < timer.ticks; i++) {
-                    tick();
-                }
-
-                render(timer.a);
-                frames++;
-
-                while (System.currentTimeMillis() >= lastTime + 1000L) {
-                    System.out.println(frames + " fps, " + Chunk.updates);
-                    Chunk.updates = 0;
-                    lastTime += 1000L;
-                    frames = 0;
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("GAME CRASH");
-            e.printStackTrace();
-        } finally {
-            destroy();
-        }
-    }
-
-    public void tick() {
-        player.tick();
-    }
-
-    private void moveCameraToPlayer(float a) {
-        GL11.glTranslatef(0, 0, -0.3F);
-        GL11.glRotatef(player.xRot, 1, 0, 0);
-        GL11.glRotatef(player.yRot, 0, 1, 0);
-
-        float x = player.xo + (player.x - player.xo) * a;
-        float y = player.yo + (player.y - player.yo) * a;
-        float z = player.zo + (player.z - player.zo) * a;
-
-        GL11.glTranslatef(-x, -y, -z);
-    }
-
-    private void setupCamera(float a) {
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
-        GLU.gluPerspective(70.0F, (float) width / height, 0.05F, 1000.0F);
-
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glLoadIdentity();
-
-        moveCameraToPlayer(a);
-    }
-
-    public void render(float a) {
-
-        float dx = Mouse.getDX();
-        float dy = Mouse.getDY();
-        player.turn(dx, dy);
-
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-
-        setupCamera(a);
-
-        worldRenderer.render(player, 0);
-        worldRenderer.render(player, 1);
-
-        if (hitResult != null) {
-            worldRenderer.renderHit(hitResult);
-        }
-
-        Display.update();
-    }
-
-    public static void main(String[] args) {
-        System.out.println("MAIN START");
-
-        VoxelGame game = new VoxelGame();
-
-        System.out.println("MAIN AFTER CONSTRUCTOR");
-
-        game.run();
     }
 }

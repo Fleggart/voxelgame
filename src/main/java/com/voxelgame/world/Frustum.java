@@ -1,162 +1,145 @@
 package com.voxelgame.world;
 
 import com.voxelgame.physics.BoundingBox;
-import java.nio.FloatBuffer;
-import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.GL11;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
-public class Frustum {
-   public float[][] m_Frustum = new float[6][4];
-   public static final int RIGHT = 0;
-   public static final int LEFT = 1;
-   public static final int BOTTOM = 2;
-   public static final int TOP = 3;
-   public static final int BACK = 4;
-   public static final int FRONT = 5;
-   public static final int A = 0;
-   public static final int B = 1;
-   public static final int C = 2;
-   public static final int D = 3;
-   private static Frustum frustum = new Frustum();
-   private FloatBuffer _proj = BufferUtils.createFloatBuffer(16);
-   private FloatBuffer _modl = BufferUtils.createFloatBuffer(16);
-   private FloatBuffer _clip = BufferUtils.createFloatBuffer(16);
-   float[] proj = new float[16];
-   float[] modl = new float[16];
-   float[] clip = new float[16];
+public class World {
+    public final int width, height, depth;
+    private final byte[] blocks;
+    private final int[] lightDepths;
+    private final List<WorldListener> listeners = new ArrayList<>();
+    
+    private final int yzSize;
+    private final int zSize;
 
-   private Frustum() {
-   }
-
-   public static Frustum getFrustum() {
-      frustum.calculateFrustum();
-      return frustum;
-   }
-
-   private void normalizePlane(float[][] frustum, int side) {
-      float magnitude = (float)Math.sqrt((double)(frustum[side][0] * frustum[side][0] + frustum[side][1] * frustum[side][1] + frustum[side][2] * frustum[side][2]));
-      frustum[side][0] /= magnitude;
-      frustum[side][1] /= magnitude;
-      frustum[side][2] /= magnitude;
-      frustum[side][3] /= magnitude;
-   }
-
-   private void calculateFrustum() {
-      this._proj.clear();
-      this._modl.clear();
-      this._clip.clear();
-      GL11.glGetFloat(2983, this._proj);
-      GL11.glGetFloat(2982, this._modl);
-      this._proj.flip().limit(16);
-      this._proj.get(this.proj);
-      this._modl.flip().limit(16);
-      this._modl.get(this.modl);
-      this.clip[0] = this.modl[0] * this.proj[0] + this.modl[1] * this.proj[4] + this.modl[2] * this.proj[8] + this.modl[3] * this.proj[12];
-      this.clip[1] = this.modl[0] * this.proj[1] + this.modl[1] * this.proj[5] + this.modl[2] * this.proj[9] + this.modl[3] * this.proj[13];
-      this.clip[2] = this.modl[0] * this.proj[2] + this.modl[1] * this.proj[6] + this.modl[2] * this.proj[10] + this.modl[3] * this.proj[14];
-      this.clip[3] = this.modl[0] * this.proj[3] + this.modl[1] * this.proj[7] + this.modl[2] * this.proj[11] + this.modl[3] * this.proj[15];
-      this.clip[4] = this.modl[4] * this.proj[0] + this.modl[5] * this.proj[4] + this.modl[6] * this.proj[8] + this.modl[7] * this.proj[12];
-      this.clip[5] = this.modl[4] * this.proj[1] + this.modl[5] * this.proj[5] + this.modl[6] * this.proj[9] + this.modl[7] * this.proj[13];
-      this.clip[6] = this.modl[4] * this.proj[2] + this.modl[5] * this.proj[6] + this.modl[6] * this.proj[10] + this.modl[7] * this.proj[14];
-      this.clip[7] = this.modl[4] * this.proj[3] + this.modl[5] * this.proj[7] + this.modl[6] * this.proj[11] + this.modl[7] * this.proj[15];
-      this.clip[8] = this.modl[8] * this.proj[0] + this.modl[9] * this.proj[4] + this.modl[10] * this.proj[8] + this.modl[11] * this.proj[12];
-      this.clip[9] = this.modl[8] * this.proj[1] + this.modl[9] * this.proj[5] + this.modl[10] * this.proj[9] + this.modl[11] * this.proj[13];
-      this.clip[10] = this.modl[8] * this.proj[2] + this.modl[9] * this.proj[6] + this.modl[10] * this.proj[10] + this.modl[11] * this.proj[14];
-      this.clip[11] = this.modl[8] * this.proj[3] + this.modl[9] * this.proj[7] + this.modl[10] * this.proj[11] + this.modl[11] * this.proj[15];
-      this.clip[12] = this.modl[12] * this.proj[0] + this.modl[13] * this.proj[4] + this.modl[14] * this.proj[8] + this.modl[15] * this.proj[12];
-      this.clip[13] = this.modl[12] * this.proj[1] + this.modl[13] * this.proj[5] + this.modl[14] * this.proj[9] + this.modl[15] * this.proj[13];
-      this.clip[14] = this.modl[12] * this.proj[2] + this.modl[13] * this.proj[6] + this.modl[14] * this.proj[10] + this.modl[15] * this.proj[14];
-      this.clip[15] = this.modl[12] * this.proj[3] + this.modl[13] * this.proj[7] + this.modl[14] * this.proj[11] + this.modl[15] * this.proj[15];
-      this.m_Frustum[0][0] = this.clip[3] - this.clip[0];
-      this.m_Frustum[0][1] = this.clip[7] - this.clip[4];
-      this.m_Frustum[0][2] = this.clip[11] - this.clip[8];
-      this.m_Frustum[0][3] = this.clip[15] - this.clip[12];
-      this.normalizePlane(this.m_Frustum, 0);
-      this.m_Frustum[1][0] = this.clip[3] + this.clip[0];
-      this.m_Frustum[1][1] = this.clip[7] + this.clip[4];
-      this.m_Frustum[1][2] = this.clip[11] + this.clip[8];
-      this.m_Frustum[1][3] = this.clip[15] + this.clip[12];
-      this.normalizePlane(this.m_Frustum, 1);
-      this.m_Frustum[2][0] = this.clip[3] + this.clip[1];
-      this.m_Frustum[2][1] = this.clip[7] + this.clip[5];
-      this.m_Frustum[2][2] = this.clip[11] + this.clip[9];
-      this.m_Frustum[2][3] = this.clip[15] + this.clip[13];
-      this.normalizePlane(this.m_Frustum, 2);
-      this.m_Frustum[3][0] = this.clip[3] - this.clip[1];
-      this.m_Frustum[3][1] = this.clip[7] - this.clip[5];
-      this.m_Frustum[3][2] = this.clip[11] - this.clip[9];
-      this.m_Frustum[3][3] = this.clip[15] - this.clip[13];
-      this.normalizePlane(this.m_Frustum, 3);
-      this.m_Frustum[4][0] = this.clip[3] - this.clip[2];
-      this.m_Frustum[4][1] = this.clip[7] - this.clip[6];
-      this.m_Frustum[4][2] = this.clip[11] - this.clip[10];
-      this.m_Frustum[4][3] = this.clip[15] - this.clip[14];
-      this.normalizePlane(this.m_Frustum, 4);
-      this.m_Frustum[5][0] = this.clip[3] + this.clip[2];
-      this.m_Frustum[5][1] = this.clip[7] + this.clip[6];
-      this.m_Frustum[5][2] = this.clip[11] + this.clip[10];
-      this.m_Frustum[5][3] = this.clip[15] + this.clip[14];
-      this.normalizePlane(this.m_Frustum, 5);
-   }
-
-   public boolean pointInFrustum(float x, float y, float z) {
-      for(int i = 0; i < 6; ++i) {
-         if (this.m_Frustum[i][0] * x + this.m_Frustum[i][1] * y + this.m_Frustum[i][2] * z + this.m_Frustum[i][3] <= 0.0F) {
-            return false;
-         }
-      }
-      return true;
-   }
-
-   public boolean sphereInFrustum(float x, float y, float z, float radius) {
-      for(int i = 0; i < 6; ++i) {
-         if (this.m_Frustum[i][0] * x + this.m_Frustum[i][1] * y + this.m_Frustum[i][2] * z + this.m_Frustum[i][3] <= -radius) {
-            return false;
-         }
-      }
-      return true;
-   }
-
-   public boolean cubeFullyInFrustum(float x1, float y1, float z1, float x2, float y2, float z2) {
-      for(int i = 0; i < 6; ++i) {
-         if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-         if (!(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-      }
-      return true;
-   }
-
-   public boolean cubeInFrustum(float x1, float y1, float z1, float x2, float y2, float z2) {
-      for(int i = 0; i < 6; ++i) {
-         if (!(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z1 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y1 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x1 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F) && !(this.m_Frustum[i][0] * x2 + this.m_Frustum[i][1] * y2 + this.m_Frustum[i][2] * z2 + this.m_Frustum[i][3] > 0.0F)) {
-            return false;
-         }
-      }
-      return true;
-   }
-
-   public boolean cubeInFrustum(BoundingBox aabb) {
-      return this.cubeInFrustum(aabb.x0, aabb.y0, aabb.z0, aabb.x1, aabb.y1, aabb.z1);
-   }
+    public World(int w, int h, int d) {
+        this.width = w;
+        this.height = h;
+        this.depth = d;
+        this.yzSize = height * depth;
+        this.zSize = height;
+        this.blocks = new byte[w * h * d];
+        this.lightDepths = new int[w * h];
+        
+        int grassLevel = d * 2 / 3;
+        for (int x = 0; x < w; x++) {
+            for (int z = 0; z < h; z++) {
+                for (int y = 0; y < d; y++) {
+                    setBlockFast(x, y, z, y <= grassLevel ? 1 : 0);
+                }
+            }
+        }
+        
+        calcLightDepths(0, 0, w, h);
+        load();
+    }
+    
+    private int index(int x, int y, int z) {
+        return (y * zSize + z) * width + x;
+    }
+    
+    private void setBlockFast(int x, int y, int z, int type) {
+        blocks[index(x, y, z)] = (byte)type;
+    }
+    
+    public boolean isBlock(int x, int y, int z) {
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return false;
+        return blocks[index(x, y, z)] == 1;
+    }
+    
+    public void setBlock(int x, int y, int z, int type) {
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return;
+        setBlockFast(x, y, z, type);
+        calcLightDepths(x, z, 1, 1);
+        for (WorldListener l : listeners) {
+            l.blockChanged(x, y, z);
+        }
+    }
+    
+    public void calcLightDepths(int x0, int z0, int w, int h) {
+        for (int x = x0; x < x0 + w; x++) {
+            int baseIdx = x + z0 * width;
+            for (int z = z0; z < z0 + h; z++) {
+                int idx = baseIdx + (z - z0);
+                int oldDepth = lightDepths[idx];
+                int y = depth - 1;
+                while (y > 0 && !isLightBlocker(x, y, z)) y--;
+                lightDepths[idx] = y;
+                
+                if (oldDepth != y) {
+                    int yMin = Math.min(oldDepth, y);
+                    int yMax = Math.max(oldDepth, y);
+                    for (WorldListener l : listeners) {
+                        l.lightColumnChanged(x, z, yMin, yMax);
+                    }
+                }
+            }
+        }
+    }
+    
+    public float getBrightness(int x, int y, int z) {
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return 1.0f;
+        return y < lightDepths[x + z * width] ? 0.8f : 1.0f;
+    }
+    
+    public boolean isLightBlocker(int x, int y, int z) { 
+        return isBlock(x, y, z); 
+    }
+    
+    public boolean isSolidBlock(int x, int y, int z) { 
+        return isBlock(x, y, z); 
+    }
+    
+    public List<BoundingBox> getCubes(BoundingBox aabb) {
+        List<BoundingBox> boxes = new ArrayList<>();
+        int x0 = Math.max(0, (int)aabb.x0);
+        int x1 = Math.min(width, (int)(aabb.x1 + 1));
+        int y0 = Math.max(0, (int)aabb.y0);
+        int y1 = Math.min(depth, (int)(aabb.y1 + 1));
+        int z0 = Math.max(0, (int)aabb.z0);
+        int z1 = Math.min(height, (int)(aabb.z1 + 1));
+        
+        for (int x = x0; x < x1; x++) {
+            for (int y = y0; y < y1; y++) {
+                for (int z = z0; z < z1; z++) {
+                    if (isSolidBlock(x, y, z)) {
+                        boxes.add(new BoundingBox(x, y, z, x + 1, y + 1, z + 1));
+                    }
+                }
+            }
+        }
+        return boxes;
+    }
+    
+    public void load() {
+        try (DataInputStream dis = new DataInputStream(new GZIPInputStream(new FileInputStream(new File("world.dat"))))) {
+            dis.readFully(this.blocks);
+            this.calcLightDepths(0, 0, this.width, this.height);
+            for (WorldListener l : listeners) {
+                l.allChanged();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void save() {
+        try (DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(new File("world.dat"))))) {
+            dos.write(this.blocks);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void addListener(WorldListener l) { 
+        listeners.add(l); 
+    }
+    
+    public void removeListener(WorldListener l) { 
+        listeners.remove(l); 
+    }
 }

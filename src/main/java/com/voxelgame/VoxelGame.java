@@ -184,7 +184,7 @@ public class VoxelGame implements Runnable {
 
       while(Mouse.next()) {
          if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult != null) {
-            this.world.setTile(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);
+            this.world.setBlock(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);
          }
 
          if (Mouse.getEventButton() == 0 && Mouse.getEventButtonState() && this.hitResult != null) {
@@ -215,7 +215,7 @@ public class VoxelGame implements Runnable {
                ++x;
             }
 
-            this.world.setTile(x, y, z, 1);
+            this.world.setBlock(x, y, z, 1);
          }
       }
 

@@ -1,7 +1,8 @@
-package com.voxelengine;
 
-import com.voxelengine.world.World;
-import com.voxelengine.physics.BoundingBox;
+package com.voxelgame;
+
+import com.voxelgame.world.World;
+import com.voxelgame.physics.BoundingBox;
 import java.util.List;
 import org.lwjgl.input.Keyboard;
 
@@ -48,7 +49,6 @@ public class Player {
       if (this.xRot < -90.0F) {
          this.xRot = -90.0F;
       }
-
       if (this.xRot > 90.0F) {
          this.xRot = 90.0F;
       }
@@ -64,23 +64,18 @@ public class Player {
       if (Keyboard.isKeyDown(19)) {
          this.resetPos();
       }
-
       if (Keyboard.isKeyDown(200) || Keyboard.isKeyDown(17)) {
          --ya;
       }
-
       if (Keyboard.isKeyDown(208) || Keyboard.isKeyDown(31)) {
          ++ya;
       }
-
       if (Keyboard.isKeyDown(203) || Keyboard.isKeyDown(30)) {
          --xa;
       }
-
       if (Keyboard.isKeyDown(205) || Keyboard.isKeyDown(32)) {
          ++xa;
       }
-
       if ((Keyboard.isKeyDown(57) || Keyboard.isKeyDown(219)) && this.onGround) {
          this.yd = 0.12F;
       }
@@ -107,30 +102,25 @@ public class Player {
       for(int i = 0; i < boxes.size(); ++i) {
          ya = boxes.get(i).clipYCollide(this.bb, ya);
       }
-
       this.bb.move(0.0F, ya, 0.0F);
 
       for(int i = 0; i < boxes.size(); ++i) {
          xa = boxes.get(i).clipXCollide(this.bb, xa);
       }
-
       this.bb.move(xa, 0.0F, 0.0F);
 
       for(int i = 0; i < boxes.size(); ++i) {
          za = boxes.get(i).clipZCollide(this.bb, za);
       }
-
       this.bb.move(0.0F, 0.0F, za);
       this.onGround = yaOrg != ya && yaOrg < 0.0F;
       
       if (xaOrg != xa) {
          this.xd = 0.0F;
       }
-
       if (yaOrg != ya) {
          this.yd = 0.0F;
       }
-
       if (zaOrg != za) {
          this.zd = 0.0F;
       }

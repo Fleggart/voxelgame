@@ -1,9 +1,12 @@
 package com.voxelgame.world;
 
+import com.voxelgame.TextureManager;
+import com.voxelgame.physics.BoundingBox;
+import org.lwjgl.opengl.GL11;
+
 public class Chunk {
    private static final int TEXTURE = TextureManager.loadTexture("/textures/terrain.png", 9728);
    private static final MeshBuilder meshBuilder = new MeshBuilder();
-   private static final int[] COORD_OFFSETS = {-1, 0, 1};
    
    private final World world;
    private final int x0, y0, z0, x1, y1, z1;
@@ -16,7 +19,7 @@ public class Chunk {
       this.world = world;
       this.x0 = x0; this.y0 = y0; this.z0 = z0;
       this.x1 = x1; this.y1 = y1; this.z1 = z1;
-      this.displayList = org.lwjgl.opengl.GL11.glGenLists(2);
+      this.displayList = GL11.glGenLists(2);
    }
 
    private void rebuild(int layer) {
@@ -26,9 +29,9 @@ public class Chunk {
       updates++;
       rebuiltThisFrame++;
       
-      org.lwjgl.opengl.GL11.glNewList(displayList + layer, 4864);
-      org.lwjgl.opengl.GL11.glEnable(3553);
-      org.lwjgl.opengl.GL11.glBindTexture(3553, TEXTURE);
+      GL11.glNewList(displayList + layer, 4864);
+      GL11.glEnable(GL11.GL_TEXTURE_2D);
+      GL11.glBindTexture(GL11.GL_TEXTURE_2D, TEXTURE);
       
       meshBuilder.init();
       
@@ -44,8 +47,8 @@ public class Chunk {
       }
       
       meshBuilder.flush();
-      org.lwjgl.opengl.GL11.glDisable(3553);
-      org.lwjgl.opengl.GL11.glEndList();
+      GL11.glDisable(GL11.GL_TEXTURE_2D);
+      GL11.glEndList();
    }
 
    public void render(int layer) {
@@ -53,8 +56,20 @@ public class Chunk {
          rebuild(0);
          rebuild(1);
       }
-      org.lwjgl.opengl.GL11.glCallList(displayList + layer);
+      GL11.glCallList(displayList + layer);
    }
 
-   public void setDirty() { dirty = true; }
+   public void setDirty() { 
+      dirty = true; 
+   }
+   
+   // 获取边界盒（供 Frustum 剔除使用）
+   public BoundingBox getBoundingBox() {
+      return new BoundingBox(x0, y0, z0, x1, y1, z1);
+   }
+   
+   // 重置重建计数器（供 WorldRenderer 每帧调用）
+   public static void resetRebuiltThisFrame() {
+      rebuiltThisFrame = 0;
+   }
 }

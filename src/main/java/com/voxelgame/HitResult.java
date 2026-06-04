@@ -1,4 +1,4 @@
-package com.mojang.rubydung;
+package com.voxelgame;  // 改为与你其他文件一致的包名
 
 public class HitResult {
    public int x;
@@ -15,4 +15,3 @@ public class HitResult {
       this.f = f;
    }
 }
-

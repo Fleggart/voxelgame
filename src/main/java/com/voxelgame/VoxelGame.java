@@ -1,4 +1,3 @@
-
 package com.voxelgame;
 
 import com.voxelgame.world.Chunk;
@@ -339,12 +338,6 @@ public class VoxelGame implements Runnable {
 
         System.out.println("MAIN AFTER CONSTRUCTOR");
 
-        while (true) {
-            try {
-                Thread.sleep(1000);
-            } catch (Exception e) {
-            }
-            System.out.println("ALIVE");
-        }
+        game.run();
     }
 }

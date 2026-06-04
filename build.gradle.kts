@@ -20,11 +20,7 @@ dependencies {
         exclude group: "net.java.jinput"
     }
     implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.3")
-    
-    // 只包含 Linux 和 Windows 的原生库（跳过 macOS）
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-windows")
     runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux")
-    // runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-macos")  // 注释掉
 }
 
 application {

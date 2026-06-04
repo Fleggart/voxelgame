@@ -1,60 +1,157 @@
 package com.voxelgame.world;
 
-public class Chunk {
-   private static final int TEXTURE = TextureManager.loadTexture("/textures/terrain.png", 9728);
-   private static final MeshBuilder meshBuilder = new MeshBuilder();
-   private static final int[] COORD_OFFSETS = {-1, 0, 1};
-   
-   private final World world;
-   private final int x0, y0, z0, x1, y1, z1;
-   private boolean dirty = true;
-   private int displayList = -1;
-   private static int rebuiltThisFrame = 0;
-   public static int updates = 0;
+import com.voxelgame.HitResult;
+import com.voxelgame.Player;
+import com.voxelgame.physics.BoundingBox;
+import org.lwjgl.opengl.GL11;
 
-   public Chunk(World world, int x0, int y0, int z0, int x1, int y1, int z1) {
+public class WorldRenderer implements WorldListener {
+   private static final int CHUNK_SIZE = 16;
+   private World world;
+   private Chunk[] chunks;
+   private int xChunks;
+   private int yChunks;
+   private int zChunks;
+   MeshBuilder t = new MeshBuilder();
+
+   public WorldRenderer(World world) {
       this.world = world;
-      this.x0 = x0; this.y0 = y0; this.z0 = z0;
-      this.x1 = x1; this.y1 = y1; this.z1 = z1;
-      this.displayList = org.lwjgl.opengl.GL11.glGenLists(2);
-   }
+      world.addListener(this);
+      this.xChunks = world.width / 16;
+      this.yChunks = world.depth / 16;
+      this.zChunks = world.height / 16;
+      this.chunks = new Chunk[this.xChunks * this.yChunks * this.zChunks];
 
-   private void rebuild(int layer) {
-      if (rebuiltThisFrame == 2) return;
-      
-      dirty = false;
-      updates++;
-      rebuiltThisFrame++;
-      
-      org.lwjgl.opengl.GL11.glNewList(displayList + layer, 4864);
-      org.lwjgl.opengl.GL11.glEnable(3553);
-      org.lwjgl.opengl.GL11.glBindTexture(3553, TEXTURE);
-      
-      meshBuilder.init();
-      
-      for (int x = x0; x < x1; x++) {
-         for (int y = y0; y < y1; y++) {
-            for (int z = z0; z < z1; z++) {
-               if (world.isBlock(x, y, z)) {
-                  Block block = y == world.depth * 2 / 3 ? Block.ROCK : Block.GRASS;
-                  block.render(meshBuilder, world, layer, x, y, z);
+      for(int x = 0; x < this.xChunks; ++x) {
+         for(int y = 0; y < this.yChunks; ++y) {
+            for(int z = 0; z < this.zChunks; ++z) {
+               int x0 = x * 16;
+               int y0 = y * 16;
+               int z0 = z * 16;
+               int x1 = (x + 1) * 16;
+               int y1 = (y + 1) * 16;
+               int z1 = (z + 1) * 16;
+               if (x1 > world.width) {
+                  x1 = world.width;
                }
+               if (y1 > world.depth) {
+                  y1 = world.depth;
+               }
+               if (z1 > world.height) {
+                  z1 = world.height;
+               }
+               this.chunks[(x + y * this.xChunks) * this.zChunks + z] = new Chunk(world, x0, y0, z0, x1, y1, z1);
             }
          }
       }
-      
-      meshBuilder.flush();
-      org.lwjgl.opengl.GL11.glDisable(3553);
-      org.lwjgl.opengl.GL11.glEndList();
    }
 
-   public void render(int layer) {
-      if (dirty) {
-         rebuild(0);
-         rebuild(1);
+   public void render(Player player, int layer) {
+      // 使用静态方法重置重建计数
+      Chunk.resetRebuiltThisFrame();
+      Frustum frustum = Frustum.getFrustum();
+      for(int i = 0; i < this.chunks.length; ++i) {
+         // 使用 Chunk 的边界盒方法
+         if (frustum.cubeInFrustum(this.chunks[i].getBoundingBox())) {
+            this.chunks[i].render(layer);
+         }
       }
-      org.lwjgl.opengl.GL11.glCallList(displayList + layer);
    }
 
-   public void setDirty() { dirty = true; }
+   public void pick(Player player) {
+      float r = 3.0F;
+      BoundingBox box = player.bb.grow(r, r, r);
+      int x0 = (int)box.x0;
+      int x1 = (int)(box.x1 + 1.0F);
+      int y0 = (int)box.y0;
+      int y1 = (int)(box.y1 + 1.0F);
+      int z0 = (int)box.z0;
+      int z1 = (int)(box.z1 + 1.0F);
+      GL11.glInitNames();
+
+      for(int x = x0; x < x1; ++x) {
+         GL11.glPushName(x);
+         for(int y = y0; y < y1; ++y) {
+            GL11.glPushName(y);
+            for(int z = z0; z < z1; ++z) {
+               GL11.glPushName(z);
+               if (this.world.isSolidBlock(x, y, z)) {
+                  GL11.glPushName(0);
+                  for(int i = 0; i < 6; ++i) {
+                     GL11.glPushName(i);
+                     this.t.init();
+                     // 使用大写 ROCK
+                     Block.ROCK.renderFace(this.t, x, y, z, i);
+                     this.t.flush();
+                     GL11.glPopName();
+                  }
+                  GL11.glPopName();
+               }
+               GL11.glPopName();
+            }
+            GL11.glPopName();
+         }
+         GL11.glPopName();
+      }
+   }
+
+   public void renderHit(HitResult h) {
+      GL11.glEnable(3042);
+      GL11.glBlendFunc(770, 1);
+      GL11.glColor4f(1.0F, 1.0F, 1.0F, (float)Math.sin((double)System.currentTimeMillis() / (double)100.0F) * 0.2F + 0.4F);
+      this.t.init();
+      // 使用大写 ROCK
+      Block.ROCK.renderFace(this.t, h.x, h.y, h.z, h.f);
+      this.t.flush();
+      GL11.glDisable(3042);
+   }
+
+   public void setDirty(int x0, int y0, int z0, int x1, int y1, int z1) {
+      x0 /= 16;
+      x1 /= 16;
+      y0 /= 16;
+      y1 /= 16;
+      z0 /= 16;
+      z1 /= 16;
+      if (x0 < 0) {
+         x0 = 0;
+      }
+      if (y0 < 0) {
+         y0 = 0;
+      }
+      if (z0 < 0) {
+         z0 = 0;
+      }
+      if (x1 >= this.xChunks) {
+         x1 = this.xChunks - 1;
+      }
+      if (y1 >= this.yChunks) {
+         y1 = this.yChunks - 1;
+      }
+      if (z1 >= this.zChunks) {
+         z1 = this.zChunks - 1;
+      }
+      for(int x = x0; x <= x1; ++x) {
+         for(int y = y0; y <= y1; ++y) {
+            for(int z = z0; z <= z1; ++z) {
+               this.chunks[(x + y * this.xChunks) * this.zChunks + z].setDirty();
+            }
+         }
+      }
+   }
+
+   @Override
+   public void blockChanged(int x, int y, int z) {
+      this.setDirty(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);
+   }
+
+   @Override
+   public void lightColumnChanged(int x, int z, int y0, int y1) {
+      this.setDirty(x - 1, y0 - 1, z - 1, x + 1, y1 + 1, z + 1);
+   }
+
+   @Override
+   public void allChanged() {
+      this.setDirty(0, 0, 0, this.world.width, this.world.depth, this.world.height);
+   }
 }

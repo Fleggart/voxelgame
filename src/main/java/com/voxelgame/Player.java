@@ -1,150 +1,129 @@
 package com.voxelgame;
 
-import com.voxelgame.world.World;
-import com.voxelgame.physics.BoundingBox;
-import java.util.List;
-import org.lwjgl.input.Keyboard;
-
 public class Player {
-   private World world;
-   public float xo;
-   public float yo;
-   public float zo;
-   public float x;
-   public float y;
-   public float z;
-   public float xd;
-   public float yd;
-   public float zd;
-   public float yRot;
-   public float xRot;
-   public BoundingBox bb;
+   private static final float WIDTH = 0.3f;
+   private static final float HEIGHT = 0.9f;
+   private static final float JUMP_FORCE = 0.12f;
+   private static final float GRAVITY = 0.005f;
+   private static final float MOVE_SPEED_GROUND = 0.02f;
+   private static final float MOVE_SPEED_AIR = 0.005f;
+   
+   private final com.voxelgame.world.World world;
+   
+   public float x, y, z;
+   public float xo, yo, zo;
+   public float xd, yd, zd;
+   public float yRot, xRot;
+   public com.voxelgame.physics.BoundingBox bb;
    public boolean onGround = false;
 
-   public Player(World world) {
+   public Player(com.voxelgame.world.World world) {
       this.world = world;
-      this.resetPos();
+      resetPos();
    }
 
-   private void resetPos() {
-      float x = (float)Math.random() * (float)this.world.width;
-      float y = (float)(this.world.depth + 10);
-      float z = (float)Math.random() * (float)this.world.height;
-      this.setPos(x, y, z);
+   public void resetPos() {
+      setPos((float)Math.random() * world.width, world.depth + 10, (float)Math.random() * world.height);
    }
 
    private void setPos(float x, float y, float z) {
       this.x = x;
       this.y = y;
       this.z = z;
-      float w = 0.3F;
-      float h = 0.9F;
-      this.bb = new BoundingBox(x - w, y - h, z - w, x + w, y + h, z + w);
+      bb = new com.voxelgame.physics.BoundingBox(x - WIDTH, y - HEIGHT, z - WIDTH, x + WIDTH, y + HEIGHT, z + WIDTH);
    }
 
-   public void turn(float xo, float yo) {
-      this.yRot = (float)((double)this.yRot + (double)xo * 0.15);
-      this.xRot = (float)((double)this.xRot - (double)yo * 0.15);
-      if (this.xRot < -90.0F) {
-         this.xRot = -90.0F;
-      }
-      if (this.xRot > 90.0F) {
-         this.xRot = 90.0F;
-      }
+   public void turn(float dx, float dy) {
+      yRot += dx * 0.15f;
+      xRot = Math.min(90f, Math.max(-90f, xRot - dy * 0.15f));
    }
 
    public void tick() {
-      this.xo = this.x;
-      this.yo = this.y;
-      this.zo = this.z;
-      float xa = 0.0F;
-      float ya = 0.0F;
+      xo = x; yo = y; zo = z;
       
-      if (Keyboard.isKeyDown(19)) {
-         this.resetPos();
-      }
-      if (Keyboard.isKeyDown(200) || Keyboard.isKeyDown(17)) {
-         --ya;
-      }
-      if (Keyboard.isKeyDown(208) || Keyboard.isKeyDown(31)) {
-         ++ya;
-      }
-      if (Keyboard.isKeyDown(203) || Keyboard.isKeyDown(30)) {
-         --xa;
-      }
-      if (Keyboard.isKeyDown(205) || Keyboard.isKeyDown(32)) {
-         ++xa;
-      }
-      if ((Keyboard.isKeyDown(57) || Keyboard.isKeyDown(219)) && this.onGround) {
-         // RubyDung: 跳跃初速度 0.5F (原 VoxelGame 为 0.12F)
-         this.yd = 0.5F;
-      }
-
-      // RubyDung: 地面加速度 0.1F, 空中加速度 0.02F (原为 0.02F / 0.005F)
-      this.moveRelative(xa, ya, this.onGround ? 0.1F : 0.02F);
+      float xa = 0, ya = 0;
       
-      // RubyDung: 重力强度 0.08 (原为 0.005)
-      this.yd = (float)((double)this.yd - 0.08);
+      // 简化的输入处理
+      if (org.lwjgl.input.Keyboard.isKeyDown(19)) resetPos();
+      if (isKeyDown(200, 17)) ya--;
+      if (isKeyDown(208, 31)) ya++;
+      if (isKeyDown(203, 30)) xa--;
+      if (isKeyDown(205, 32)) xa++;
       
-      this.move(this.xd, this.yd, this.zd);
-      this.xd *= 0.91F;
-      this.yd *= 0.98F;
-      this.zd *= 0.91F;
-      
-      if (this.onGround) {
-         // RubyDung: 地面摩擦力 0.7F (原为 0.8F)
-         this.xd *= 0.7F;
-         this.zd *= 0.7F;
+      if ((org.lwjgl.input.Keyboard.isKeyDown(57) || org.lwjgl.input.Keyboard.isKeyDown(219)) && onGround) {
+         yd = JUMP_FORCE;
       }
+      
+      float speed = onGround ? MOVE_SPEED_GROUND : MOVE_SPEED_AIR;
+      moveRelative(xa, ya, speed);
+      yd -= GRAVITY;
+      move(xd, yd, zd);
+      
+      float friction = 0.91f;
+      xd *= friction;
+      yd *= 0.98f;
+      zd *= friction;
+      
+      if (onGround) {
+         xd *= 0.8f;
+         zd *= 0.8f;
+      }
+   }
+   
+   private boolean isKeyDown(int key1, int key2) {
+      return org.lwjgl.input.Keyboard.isKeyDown(key1) || org.lwjgl.input.Keyboard.isKeyDown(key2);
    }
 
    public void move(float xa, float ya, float za) {
-      float xaOrg = xa;
-      float yaOrg = ya;
-      float zaOrg = za;
-      List<BoundingBox> boxes = this.world.getCubes(this.bb.expand(xa, ya, za));
-
-      for(int i = 0; i < boxes.size(); ++i) {
-         ya = boxes.get(i).clipYCollide(this.bb, ya);
-      }
-      this.bb.move(0.0F, ya, 0.0F);
-
-      for(int i = 0; i < boxes.size(); ++i) {
-         xa = boxes.get(i).clipXCollide(this.bb, xa);
-      }
-      this.bb.move(xa, 0.0F, 0.0F);
-
-      for(int i = 0; i < boxes.size(); ++i) {
-         za = boxes.get(i).clipZCollide(this.bb, za);
-      }
-      this.bb.move(0.0F, 0.0F, za);
-      this.onGround = yaOrg != ya && yaOrg < 0.0F;
+      float xaOrg = xa, yaOrg = ya, zaOrg = za;
+      var boxes = world.getCubes(bb.expand(xa, ya, za));
       
-      if (xaOrg != xa) {
-         this.xd = 0.0F;
-      }
-      if (yaOrg != ya) {
-         this.yd = 0.0F;
-      }
-      if (zaOrg != za) {
-         this.zd = 0.0F;
-      }
-
-      this.x = (this.bb.x0 + this.bb.x1) / 2.0F;
-      this.y = this.bb.y0 + 1.62F;
-      this.z = (this.bb.z0 + this.bb.z1) / 2.0F;
+      ya = collideY(boxes, ya);
+      bb.move(0, ya, 0);
+      xa = collideX(boxes, xa);
+      bb.move(xa, 0, 0);
+      za = collideZ(boxes, za);
+      bb.move(0, 0, za);
+      
+      onGround = yaOrg != ya && yaOrg < 0;
+      
+      if (xaOrg != xa) xd = 0;
+      if (yaOrg != ya) yd = 0;
+      if (zaOrg != za) zd = 0;
+      
+      x = (bb.x0 + bb.x1) / 2;
+      y = bb.y0 + 1.62f;
+      z = (bb.z0 + bb.z1) / 2;
+   }
+   
+   private float collideX(java.util.List<com.voxelgame.physics.BoundingBox> boxes, float xa) {
+      for (var box : boxes) xa = box.clipXCollide(bb, xa);
+      return xa;
+   }
+   
+   private float collideY(java.util.List<com.voxelgame.physics.BoundingBox> boxes, float ya) {
+      for (var box : boxes) ya = box.clipYCollide(bb, ya);
+      return ya;
+   }
+   
+   private float collideZ(java.util.List<com.voxelgame.physics.BoundingBox> boxes, float za) {
+      for (var box : boxes) za = box.clipZCollide(bb, za);
+      return za;
    }
 
    public void moveRelative(float xa, float za, float speed) {
       float dist = xa * xa + za * za;
-      if (!(dist < 0.01F)) {
-         dist = speed / (float)Math.sqrt((double)dist);
-         xa *= dist;
-         za *= dist;
-         float sin = (float)Math.sin((double)this.yRot * Math.PI / (double)180.0F);
-         float cos = (float)Math.cos((double)this.yRot * Math.PI / (double)180.0F);
-         this.xd += xa * cos - za * sin;
-         this.zd += za * cos + xa * sin;
-      }
+      if (dist < 0.01f) return;
+      
+      dist = speed / (float)Math.sqrt(dist);
+      xa *= dist;
+      za *= dist;
+      
+      float rad = yRot * (float)Math.PI / 180f;
+      float sin = (float)Math.sin(rad);
+      float cos = (float)Math.cos(rad);
+      
+      xd += xa * cos - za * sin;
+      zd += za * cos + xa * sin;
    }
 }

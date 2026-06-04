@@ -1,8 +1,8 @@
-package com.voxelengine.world;
+package com.voxelgame.world;
 
 import com.voxelgame.HitResult;
-import com.voxelengine.Player;
-import com.voxelengine.physics.BoundingBox;
+import com.voxelgame.Player;
+import com.voxelgame.physics.BoundingBox;
 import org.lwjgl.opengl.GL11;
 
 public class WorldRenderer implements WorldListener {
@@ -34,15 +34,12 @@ public class WorldRenderer implements WorldListener {
                if (x1 > world.width) {
                   x1 = world.width;
                }
-
                if (y1 > world.depth) {
                   y1 = world.depth;
                }
-
                if (z1 > world.height) {
                   z1 = world.height;
                }
-
                this.chunks[(x + y * this.xChunks) * this.zChunks + z] = new Chunk(world, x0, y0, z0, x1, y1, z1);
             }
          }
@@ -52,7 +49,6 @@ public class WorldRenderer implements WorldListener {
    public void render(Player player, int layer) {
       Chunk.rebuiltThisFrame = 0;
       Frustum frustum = Frustum.getFrustum();
-
       for(int i = 0; i < this.chunks.length; ++i) {
          if (frustum.cubeInFrustum(this.chunks[i].aabb)) {
             this.chunks[i].render(layer);
@@ -73,15 +69,12 @@ public class WorldRenderer implements WorldListener {
 
       for(int x = x0; x < x1; ++x) {
          GL11.glPushName(x);
-
          for(int y = y0; y < y1; ++y) {
             GL11.glPushName(y);
-
             for(int z = z0; z < z1; ++z) {
                GL11.glPushName(z);
                if (this.world.isSolidBlock(x, y, z)) {
                   GL11.glPushName(0);
-
                   for(int i = 0; i < 6; ++i) {
                      GL11.glPushName(i);
                      this.t.init();
@@ -89,16 +82,12 @@ public class WorldRenderer implements WorldListener {
                      this.t.flush();
                      GL11.glPopName();
                   }
-
                   GL11.glPopName();
                }
-
                GL11.glPopName();
             }
-
             GL11.glPopName();
          }
-
          GL11.glPopName();
       }
    }
@@ -123,27 +112,21 @@ public class WorldRenderer implements WorldListener {
       if (x0 < 0) {
          x0 = 0;
       }
-
       if (y0 < 0) {
          y0 = 0;
       }
-
       if (z0 < 0) {
          z0 = 0;
       }
-
       if (x1 >= this.xChunks) {
          x1 = this.xChunks - 1;
       }
-
       if (y1 >= this.yChunks) {
          y1 = this.yChunks - 1;
       }
-
       if (z1 >= this.zChunks) {
          z1 = this.zChunks - 1;
       }
-
       for(int x = x0; x <= x1; ++x) {
          for(int y = y0; y <= y1; ++y) {
             for(int z = z0; z <= z1; ++z) {

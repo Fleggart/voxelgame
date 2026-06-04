@@ -1,4 +1,4 @@
-package com.voxelengine.world;
+package com.voxelgame.world;
 
 public class Block {
    public static Block rock = new Block(0);

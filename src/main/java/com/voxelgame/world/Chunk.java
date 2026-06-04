@@ -1,7 +1,7 @@
 package com.voxelgame.world;
 
-import com.voxelengine.TextureManager;
-import com.voxelengine.physics.BoundingBox;
+import com.voxelgame.TextureManager;
+import com.voxelgame.physics.BoundingBox;
 import org.lwjgl.opengl.GL11;
 
 public class Chunk {

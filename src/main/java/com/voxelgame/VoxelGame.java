@@ -27,6 +27,9 @@ public class VoxelGame implements Runnable {
     private IntBuffer viewportBuffer;
     private IntBuffer selectBuffer;
     private HitResult hitResult = null;
+    
+    // 存储雾颜色分量，用于清屏
+    private float fogR, fogG, fogB;
 
     public void init() throws LWJGLException, IOException {
         System.out.println("INIT A");
@@ -50,9 +53,9 @@ public class VoxelGame implements Runnable {
         System.out.println("INIT A2");
 
         int col = 920330;
-        float fr = 0.5F;
-        float fg = 0.8F;
-        float fb = 1.0F;
+        fogR = 0.5F;
+        fogG = 0.8F;
+        fogB = 1.0F;
 
         float r = (float)(col >> 16 & 255) / 255.0F;
         float g = (float)(col >> 8 & 255) / 255.0F;
@@ -64,13 +67,13 @@ public class VoxelGame implements Runnable {
 
         System.out.println("INIT E");
 
-        //Keyboard.create();
-        System.out.println("SKIP KEYBOARD");
+        Keyboard.create();
+        System.out.println("KEYBOARD CREATED");
 
         System.out.println("INIT A3");
 
-        //Mouse.create();
-        System.out.println("SKIP MOUSE");
+        Mouse.create();
+        System.out.println("MOUSE CREATED");
 
         System.out.println("INIT A4");
 
@@ -88,8 +91,6 @@ public class VoxelGame implements Runnable {
         GL11.glShadeModel(GL11.GL_SMOOTH);
 
         System.out.println("INIT I");
-
-        GL11.glClearColor(fr, fg, fb, 0.0F);
 
         System.out.println("INIT J");
 
@@ -123,7 +124,7 @@ public class VoxelGame implements Runnable {
 
         System.out.println("INIT Q");
 
-        //Mouse.setGrabbed(true);
+        Mouse.setGrabbed(true);
 
         System.out.println("INIT R");
     }
@@ -261,11 +262,13 @@ public class VoxelGame implements Runnable {
     }
 
     public void render(float a) {
+        // 1. 处理输入
         float xo = (float)Mouse.getDX();
         float yo = (float)Mouse.getDY();
         this.player.turn(xo, yo);
         this.pick(a);
 
+        // 2. 处理鼠标点击（放置/破坏方块）
         while(Mouse.next()) {  
             if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult != null) {  
                 this.world.setBlock(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);  
@@ -275,50 +278,69 @@ public class VoxelGame implements Runnable {
                 int x = this.hitResult.x;  
                 int y = this.hitResult.y;  
                 int z = this.hitResult.z;  
-                if (this.hitResult.f == 0) {  
-                    --y;  
-                }  
-                if (this.hitResult.f == 1) {  
-                    ++y;  
-                }  
-                if (this.hitResult.f == 2) {  
-                    --z;  
-                }  
-                if (this.hitResult.f == 3) {  
-                    ++z;  
-                }  
-                if (this.hitResult.f == 4) {  
-                    --x;  
-                }  
-                if (this.hitResult.f == 5) {  
-                    ++x;  
-                }  
+                if (this.hitResult.f == 0) --y;  
+                if (this.hitResult.f == 1) ++y;  
+                if (this.hitResult.f == 2) --z;  
+                if (this.hitResult.f == 3) ++z;  
+                if (this.hitResult.f == 4) --x;  
+                if (this.hitResult.f == 5) ++x;  
                 this.world.setBlock(x, y, z, 1);  
             }  
         }  
 
+        // 3. 处理键盘（保存世界）
         while(Keyboard.next()) {  
             if (Keyboard.getEventKey() == 28 && Keyboard.getEventKeyState()) {  
                 this.world.save();  
             }  
         }  
 
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);  
-        this.setupCamera(a);  
-        GL11.glEnable(GL11.GL_CULL_FACE);  
-        GL11.glEnable(GL11.GL_FOG);  
-        GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);  
-        GL11.glFogf(GL11.GL_FOG_DENSITY, 0.2F);  
-        GL11.glFog(GL11.GL_FOG_COLOR, this.fogColor);  
-        GL11.glDisable(GL11.GL_FOG);  
-        this.worldRenderer.render(this.player, 0);  
-        GL11.glEnable(GL11.GL_FOG);  
-        this.worldRenderer.render(this.player, 1);  
-        GL11.glDisable(GL11.GL_TEXTURE_2D);  
-        if (this.hitResult != null) {  
-            this.worldRenderer.renderHit(this.hitResult);  
-        }  
-        GL11.glDisable(GL11.GL_FOG);  
+        // ========== 4. OpenGL ES 3.x 渲染设置 ==========
+        
+        // 清屏（使用与雾相同的颜色，确保远景无缝过渡）
+        GL11.glClearColor(fogR, fogG, fogB, 1.0F);
+        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+        
+        // 设置相机
+        this.setupCamera(a);
+        
+        // ========== 5. 启用深度测试和背面剔除 ==========
+        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GL11.glDepthFunc(GL11.GL_LEQUAL);
+        GL11.glEnable(GL11.GL_CULL_FACE);
+        GL11.glCullFace(GL11.GL_BACK);
+        
+        // ========== 6. 配置雾效 ==========
+        GL11.glEnable(GL11.GL_FOG);
+        GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
+        GL11.glFogf(GL11.GL_FOG_DENSITY, 0.15F);
+        GL11.glFog(GL11.GL_FOG_COLOR, this.fogColor);
+        
+        // ========== 7. 渲染不透明物体（带雾效）==========
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        this.worldRenderer.render(this.player, 0);
+        
+        // ========== 8. 渲染透明物体（保留雾效）==========
+        this.worldRenderer.render(this.player, 1);
+        
+        // ========== 9. 渲染 hitbox（特殊处理）==========
+        if (this.hitResult != null) {
+            GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GL11.glDisable(GL11.GL_FOG);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            
+            // 设置线框模式
+            GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_LINE);
+            this.worldRenderer.renderHit(this.hitResult);
+            GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_FILL);
+            
+            // 恢复状态
+            GL11.glEnable(GL11.GL_CULL_FACE);
+            GL11.glEnable(GL11.GL_FOG);
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
+        }
+        
+        // ========== 10. 交换缓冲区 ==========
         Display.update();
     }
 

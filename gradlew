@@ -3,7 +3,7 @@
 
 APP_HOME=$(cd "$(dirname "$0")" && pwd)
 APP_BASE_NAME=$(basename "$0")
-DEFAULT_JVM_OPTS='"-Xmx512m" "-Xms128m"'
+DEFAULT_JVM_OPTS="-Xmx512m -Xms128m"
 
 # 检查 Java
 if [ -n "$JAVA_HOME" ]; then

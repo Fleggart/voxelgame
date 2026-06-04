@@ -1,4 +1,3 @@
-
 package com.voxelgame;
 
 import com.voxelgame.world.World;
@@ -77,19 +76,25 @@ public class Player {
          ++xa;
       }
       if ((Keyboard.isKeyDown(57) || Keyboard.isKeyDown(219)) && this.onGround) {
-         this.yd = 0.12F;
+         // RubyDung: 跳跃初速度 0.5F (原 VoxelGame 为 0.12F)
+         this.yd = 0.5F;
       }
 
-      this.moveRelative(xa, ya, this.onGround ? 0.02F : 0.005F);
-      this.yd = (float)((double)this.yd - 0.005);
+      // RubyDung: 地面加速度 0.1F, 空中加速度 0.02F (原为 0.02F / 0.005F)
+      this.moveRelative(xa, ya, this.onGround ? 0.1F : 0.02F);
+      
+      // RubyDung: 重力强度 0.08 (原为 0.005)
+      this.yd = (float)((double)this.yd - 0.08);
+      
       this.move(this.xd, this.yd, this.zd);
       this.xd *= 0.91F;
       this.yd *= 0.98F;
       this.zd *= 0.91F;
       
       if (this.onGround) {
-         this.xd *= 0.8F;
-         this.zd *= 0.8F;
+         // RubyDung: 地面摩擦力 0.7F (原为 0.8F)
+         this.xd *= 0.7F;
+         this.zd *= 0.7F;
       }
    }
 

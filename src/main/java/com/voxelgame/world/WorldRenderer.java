@@ -47,10 +47,12 @@ public class WorldRenderer implements WorldListener {
    }
 
    public void render(Player player, int layer) {
-      Chunk.rebuiltThisFrame = 0;
+      // 使用静态方法重置重建计数
+      Chunk.resetRebuiltThisFrame();
       Frustum frustum = Frustum.getFrustum();
       for(int i = 0; i < this.chunks.length; ++i) {
-         if (frustum.cubeInFrustum(this.chunks[i].aabb)) {
+         // 使用 Chunk 的边界盒方法
+         if (frustum.cubeInFrustum(this.chunks[i].getBoundingBox())) {
             this.chunks[i].render(layer);
          }
       }
@@ -78,7 +80,8 @@ public class WorldRenderer implements WorldListener {
                   for(int i = 0; i < 6; ++i) {
                      GL11.glPushName(i);
                      this.t.init();
-                     Block.rock.renderFace(this.t, x, y, z, i);
+                     // 使用大写 ROCK
+                     Block.ROCK.renderFace(this.t, x, y, z, i);
                      this.t.flush();
                      GL11.glPopName();
                   }
@@ -97,7 +100,8 @@ public class WorldRenderer implements WorldListener {
       GL11.glBlendFunc(770, 1);
       GL11.glColor4f(1.0F, 1.0F, 1.0F, (float)Math.sin((double)System.currentTimeMillis() / (double)100.0F) * 0.2F + 0.4F);
       this.t.init();
-      Block.rock.renderFace(this.t, h.x, h.y, h.z, h.f);
+      // 使用大写 ROCK
+      Block.ROCK.renderFace(this.t, h.x, h.y, h.z, h.f);
       this.t.flush();
       GL11.glDisable(3042);
    }

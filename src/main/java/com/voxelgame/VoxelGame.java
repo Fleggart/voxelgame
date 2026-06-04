@@ -67,38 +67,60 @@ Display.destroy();
 
 public void run() {
 try {
-this.init();
+System.out.println("STEP 1: init start");
+
+    this.init();
+
+    System.out.println("STEP 2: init success");
+
 } catch (Exception e) {
-JOptionPane.showMessageDialog((Component)null, e.toString(), "Failed to start VoxelEngine", 0);
-System.exit(0);
+
+    System.err.println("================================");
+    System.err.println("VoxelEngine startup failed");
+    System.err.println("================================");
+
+    e.printStackTrace();
+
+    try {
+        Thread.sleep(10000);
+    } catch (InterruptedException ignored) {
+    }
+
+    return;
 }
 
-long lastTime = System.currentTimeMillis();  
-  int frames = 0;  
+long lastTime = System.currentTimeMillis();
+int frames = 0;
 
-  try {  
-     while(!Keyboard.isKeyDown(1) && !Display.isCloseRequested()) {  
-        this.timer.advanceTime();  
+System.out.println("STEP 3: entering game loop");
 
-        for(int i = 0; i < this.timer.ticks; ++i) {  
-           this.tick();  
-        }  
+try {
+    while (!Keyboard.isKeyDown(1) && !Display.isCloseRequested()) {
+        this.timer.advanceTime();
 
-        this.render(this.timer.a);  
-        ++frames;  
+        for (int i = 0; i < this.timer.ticks; ++i) {
+            this.tick();
+        }
 
-        while(System.currentTimeMillis() >= lastTime + 1000L) {  
-           System.out.println(frames + " fps, " + Chunk.updates);  
-           Chunk.updates = 0;  
-           lastTime += 1000L;  
-           frames = 0;  
-        }  
-     }  
-  } catch (Exception e) {  
-     e.printStackTrace();  
-  } finally {  
-     this.destroy();  
-  }
+        this.render(this.timer.a);
+        ++frames;
+
+        while (System.currentTimeMillis() >= lastTime + 1000L) {
+            System.out.println(frames + " fps, " + Chunk.updates);
+            Chunk.updates = 0;
+            lastTime += 1000L;
+            frames = 0;
+        }
+    }
+} catch (Exception e) {
+    System.err.println("================================");
+    System.err.println("Game loop crashed");
+    System.err.println("================================");
+
+    e.printStackTrace();
+} finally {
+    this.destroy();
+}
 
 }
 

@@ -1,5 +1,4 @@
 #!/bin/sh
-# 精简版 - 仅适用于 GitHub Actions Ubuntu
 
 APP_HOME=$(cd "$(dirname "$0")" && pwd)
 APP_BASE_NAME=$(basename "$0")

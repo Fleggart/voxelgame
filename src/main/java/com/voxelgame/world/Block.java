@@ -4,8 +4,8 @@ import org.lwjgl.opengl.GL11;
 
 public class Block {
    public static final Block[] BLOCKS = new Block[256];
-   public static final Block ROCK = new Block(0);
-   public static final Block GRASS = new Block(1);
+   public static final Block STONE = new Block(1);  // 石头纹理，tex=1
+   public static final Block GRASS = new Block(0);  // 草纹理，tex=0
    
    private final int tex;
    private static final float[][] BRIGHTNESS = {

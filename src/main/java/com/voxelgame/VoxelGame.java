@@ -21,7 +21,7 @@ public class VoxelGame implements Runnable {
     private static final boolean FULLSCREEN_MODE = false;
     private int width;
     private int height;
-    private FloatBuffer fogColor = BufferUtils.createFloatBuffer(4);
+    private FloatBuffer fogColor;
     private GameTimer timer = new GameTimer(60.0F);
     private World world;
     private WorldRenderer worldRenderer;

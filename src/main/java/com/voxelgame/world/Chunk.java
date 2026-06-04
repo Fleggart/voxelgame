@@ -22,24 +22,19 @@ public class Chunk {
       this.displayList = GL11.glGenLists(2);
    }
 
-   private void rebuild(int layer) {
-      if (rebuiltThisFrame == 2) return;
-      
-      dirty = false;
-      updates++;
-      rebuiltThisFrame++;
-      
-      GL11.glNewList(displayList + layer, 4864);
+   private void rebuildLayer(int layer) {
+      GL11.glNewList(displayList + layer, GL11.GL_COMPILE);
       GL11.glEnable(GL11.GL_TEXTURE_2D);
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, TEXTURE);
       
       meshBuilder.init();
       
+      int grassLevel = world.depth * 2 / 3;
       for (int x = x0; x < x1; x++) {
          for (int y = y0; y < y1; y++) {
             for (int z = z0; z < z1; z++) {
                if (world.isBlock(x, y, z)) {
-                  Block block = y == world.depth * 2 / 3 ? Block.ROCK : Block.GRASS;
+                  Block block = y == grassLevel ? Block.ROCK : Block.GRASS;
                   block.render(meshBuilder, world, layer, x, y, z);
                }
             }
@@ -51,11 +46,19 @@ public class Chunk {
       GL11.glEndList();
    }
 
+   private void rebuild() {
+      if (rebuiltThisFrame == 2) return;
+      
+      dirty = false;
+      updates++;
+      rebuiltThisFrame++;
+      
+      rebuildLayer(0);
+      rebuildLayer(1);
+   }
+
    public void render(int layer) {
-      if (dirty) {
-         rebuild(0);
-         rebuild(1);
-      }
+      if (dirty) rebuild();
       GL11.glCallList(displayList + layer);
    }
 
@@ -63,12 +66,10 @@ public class Chunk {
       dirty = true; 
    }
    
-   // 获取边界盒（供 Frustum 剔除使用）
    public BoundingBox getBoundingBox() {
       return new BoundingBox(x0, y0, z0, x1, y1, z1);
    }
    
-   // 重置重建计数器（供 WorldRenderer 每帧调用）
    public static void resetRebuiltThisFrame() {
       rebuiltThisFrame = 0;
    }

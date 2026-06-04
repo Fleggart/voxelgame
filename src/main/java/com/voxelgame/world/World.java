@@ -1,6 +1,6 @@
-package com.voxelengine.world;
+package com.voxelgame.world;
 
-import com.voxelengine.physics.BoundingBox;
+import com.voxelgame.physics.BoundingBox;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -43,11 +43,9 @@ public class World {
          DataInputStream dis = new DataInputStream(new GZIPInputStream(new FileInputStream(new File("world.dat"))));
          dis.readFully(this.blocks);
          this.calcLightDepths(0, 0, this.width, this.height);
-
          for(int i = 0; i < this.worldListeners.size(); ++i) {
             ((WorldListener)this.worldListeners.get(i)).allChanged();
          }
-
          dis.close();
       } catch (Exception e) {
          e.printStackTrace();
@@ -68,16 +66,13 @@ public class World {
       for(int x = x0; x < x0 + x1; ++x) {
          for(int z = y0; z < y0 + y1; ++z) {
             int oldDepth = this.lightDepths[x + z * this.width];
-
             int y;
             for(y = this.depth - 1; y > 0 && !this.isLightBlocker(x, y, z); --y) {
             }
-
             this.lightDepths[x + z * this.width] = y;
             if (oldDepth != y) {
                int yl0 = oldDepth < y ? oldDepth : y;
                int yl1 = oldDepth > y ? oldDepth : y;
-
                for(int i = 0; i < this.worldListeners.size(); ++i) {
                   ((WorldListener)this.worldListeners.get(i)).lightColumnChanged(x, z, yl0, yl1);
                }
@@ -121,27 +116,21 @@ public class World {
       if (x0 < 0) {
          x0 = 0;
       }
-
       if (y0 < 0) {
          y0 = 0;
       }
-
       if (z0 < 0) {
          z0 = 0;
       }
-
       if (x1 > this.width) {
          x1 = this.width;
       }
-
       if (y1 > this.depth) {
          y1 = this.depth;
       }
-
       if (z1 > this.height) {
          z1 = this.height;
       }
-
       for(int x = x0; x < x1; ++x) {
          for(int y = y0; y < y1; ++y) {
             for(int z = z0; z < z1; ++z) {
@@ -151,7 +140,6 @@ public class World {
             }
          }
       }
-
       return aABBs;
    }
 
@@ -169,7 +157,6 @@ public class World {
       if (x >= 0 && y >= 0 && z >= 0 && x < this.width && y < this.depth && z < this.height) {
          this.blocks[(y * this.height + z) * this.width + x] = (byte)type;
          this.calcLightDepths(x, z, 1, 1);
-
          for(int i = 0; i < this.worldListeners.size(); ++i) {
             ((WorldListener)this.worldListeners.get(i)).blockChanged(x, y, z);
          }

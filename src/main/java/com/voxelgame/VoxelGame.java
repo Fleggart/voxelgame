@@ -1,5 +1,6 @@
 package com.voxelgame;
 
+import com.voxelgame.graphics.ShaderProgram;
 import com.voxelgame.world.Chunk;
 import com.voxelgame.world.World;
 import com.voxelgame.world.WorldRenderer;
@@ -14,6 +15,7 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.util.glu.GLU;
 
 public class VoxelGame implements Runnable {
@@ -28,6 +30,7 @@ public class VoxelGame implements Runnable {
     private IntBuffer viewportBuffer = BufferUtils.createIntBuffer(16);
     private IntBuffer selectBuffer = BufferUtils.createIntBuffer(2000);
     private HitResult hitResult = null;
+    private ShaderProgram shader;
 
     public void init() throws LWJGLException, IOException {
         int col = 920330;
@@ -62,6 +65,19 @@ public class VoxelGame implements Runnable {
         GL11.glLoadIdentity();
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         
+        // 加载Shader
+        try {
+            shader = new ShaderProgram("/vertex.glsl", "/fragment.glsl");
+            System.out.println("Shaders loaded successfully");
+        } catch (Exception e) {
+            System.err.println("Failed to load shaders, falling back to fixed function");
+            e.printStackTrace();
+            shader = null;
+        }
+        
+        // 设置纹理单元
+        GL11.glActiveTexture(GL13.GL_TEXTURE0);
+        
         this.world = new World(256, 256, 64);
         this.worldRenderer = new WorldRenderer(this.world);
         this.player = new Player(this.world);
@@ -69,6 +85,9 @@ public class VoxelGame implements Runnable {
     }
 
     public void destroy() {
+        if (shader != null) {
+            shader.cleanup();
+        }
         this.world.save();
         Mouse.destroy();
         Keyboard.destroy();
@@ -220,6 +239,22 @@ public class VoxelGame implements Runnable {
 
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);  
         this.setupCamera(a);  
+        
+        // 使用Shader
+        if (shader != null) {
+            shader.use();
+            
+            // 设置uniform变量
+            FloatBuffer projMatrix = BufferUtils.createFloatBuffer(16);
+            GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, projMatrix);
+            
+            FloatBuffer mvMatrix = BufferUtils.createFloatBuffer(16);
+            GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, mvMatrix);
+            
+            shader.setUniform("hasTexture", 1);
+            shader.setUniform("hasColor", 1);
+        }
+        
         GL11.glEnable(GL11.GL_CULL_FACE);  
         GL11.glEnable(GL11.GL_FOG);  
         GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);  
@@ -230,10 +265,17 @@ public class VoxelGame implements Runnable {
         GL11.glEnable(GL11.GL_FOG);  
         this.worldRenderer.render(this.player, 1);  
         GL11.glDisable(GL11.GL_TEXTURE_2D);  
+        
         if (this.hitResult != null) {  
             this.worldRenderer.renderHit(this.hitResult);  
         }  
+        
         GL11.glDisable(GL11.GL_FOG);  
+        
+        if (shader != null) {
+            shader.stop();
+        }
+        
         Display.update();
     }
 

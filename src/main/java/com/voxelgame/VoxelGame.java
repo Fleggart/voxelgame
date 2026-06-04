@@ -54,15 +54,14 @@ public class VoxelGame implements Runnable {
         float fg = 0.8F;
         float fb = 1.0F;
 
-        this.fogColor.clear();
+        this.fogColor.rewind();
         this.fogColor.put(new float[]{
                 (float)(col >> 16 & 255) / 255.0F,
                 (float)(col >> 8 & 255) / 255.0F,
                 (float)(col & 255) / 255.0F,
                 1.0F
         });
-        this.fogColor.position(0);
-        this.fogColor.limit(this.fogColor.capacity());
+        this.fogColor.rewind();
 
         System.out.println("INIT E");
 

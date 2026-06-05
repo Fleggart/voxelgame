@@ -4,10 +4,8 @@ import com.voxelgame.graphics.ShaderProgram;
 import com.voxelgame.world.Chunk;
 import com.voxelgame.world.World;
 import com.voxelgame.world.WorldRenderer;
-import java.io.IOException;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
-import javax.swing.JOptionPane;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.LWJGLException;
 import org.lwjgl.input.Keyboard;
@@ -17,6 +15,11 @@ import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.util.glu.GLU;
+
+import javax.swing.*;
+import java.io.IOException;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 public class VoxelGame implements Runnable {
     private static final boolean FULLSCREEN_MODE = false;
@@ -31,6 +34,13 @@ public class VoxelGame implements Runnable {
     private IntBuffer selectBuffer = BufferUtils.createIntBuffer(2000);
     private HitResult hitResult = null;
     private ShaderProgram shader;
+    
+    // JOML matrices for camera and transformations
+    private final Matrix4f projectionMatrix = new Matrix4f();
+    private final Matrix4f modelViewMatrix = new Matrix4f();
+    private final Matrix4f tempMatrix = new Matrix4f();
+    private final Vector3f cameraPosition = new Vector3f();
+    private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
 
     public void init() throws LWJGLException, IOException {
         int col = 920330;
@@ -61,11 +71,8 @@ public class VoxelGame implements Runnable {
         GL11.glClearDepth(1.0D);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
         
-        // 加载Shader (可选)
+        // Load Shader
         try {
             shader = new ShaderProgram("/vertex.glsl", "/fragment.glsl");
             System.out.println("Shaders loaded successfully");
@@ -75,13 +82,21 @@ public class VoxelGame implements Runnable {
             shader = null;
         }
         
-        // 设置纹理单元 - 修复：使用 GL13 而不是 GL11
+        // Setup texture unit
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         
         this.world = new World(256, 256, 64);
         this.worldRenderer = new WorldRenderer(this.world);
         this.player = new Player(this.world);
         Mouse.setGrabbed(true);
+        
+        // Initialize projection matrix
+        updateProjectionMatrix();
+    }
+    
+    private void updateProjectionMatrix() {
+        float aspect = (float) this.width / (float) this.height;
+        projectionMatrix.setPerspective((float) Math.toRadians(70.0F), aspect, 0.05F, 1000.0F);
     }
 
     public void destroy() {
@@ -138,7 +153,51 @@ public class VoxelGame implements Runnable {
         this.player.tick();
     }
 
+    /**
+     * Build model-view matrix using JOML
+     */
+    private Matrix4f buildModelViewMatrix(float a) {
+        modelViewMatrix.identity();
+        
+        // Apply camera transformation in reverse order
+        // First translate to camera position, then rotate
+        
+        // Interpolate player position
+        float x = this.player.xo + (this.player.x - this.player.xo) * a;
+        float y = this.player.yo + (this.player.y - this.player.yo) * a;
+        float z = this.player.zo + (this.player.z - this.player.zo) * a;
+        
+        // Build view matrix: look from camera position with rotation
+        // In LWJGL, we do: rotate, then translate negative camera position
+        modelViewMatrix.translate(-x, -y, -z);
+        modelViewMatrix.rotateX((float) Math.toRadians(-this.player.xRot));
+        modelViewMatrix.rotateY((float) Math.toRadians(-this.player.yRot));
+        modelViewMatrix.translate(0, 0, -0.3F);
+        
+        return modelViewMatrix;
+    }
+
+    private void setupCamera(float a) {
+        if (shader != null) {
+            // Use shader mode - just set matrices, no fixed function
+            GL11.glMatrixMode(GL11.GL_PROJECTION);
+            GL11.glLoadIdentity();
+            // Projection matrix is handled separately
+            GL11.glMatrixMode(GL11.GL_MODELVIEW);
+            GL11.glLoadIdentity();
+        } else {
+            // Fixed function fallback
+            GL11.glMatrixMode(GL11.GL_PROJECTION);
+            GL11.glLoadIdentity();
+            GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, 1000.0F);
+            GL11.glMatrixMode(GL11.GL_MODELVIEW);
+            GL11.glLoadIdentity();
+            moveCameraToPlayer(a);
+        }
+    }
+    
     private void moveCameraToPlayer(float a) {
+        // For fixed function mode
         GL11.glTranslatef(0.0F, 0.0F, -0.3F);
         GL11.glRotatef(this.player.xRot, 1.0F, 0.0F, 0.0F);
         GL11.glRotatef(this.player.yRot, 0.0F, 1.0F, 0.0F);
@@ -147,14 +206,16 @@ public class VoxelGame implements Runnable {
         float z = this.player.zo + (this.player.z - this.player.zo) * a;
         GL11.glTranslatef(-x, -y, -z);
     }
-
-    private void setupCamera(float a) {
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
-        GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, 1000.0F);
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glLoadIdentity();
-        this.moveCameraToPlayer(a);
+    
+    private void uploadMatricesToShader(float a) {
+        if (shader == null) return;
+        
+        // Upload projection matrix
+        shader.setProjectionMatrix(projectionMatrix);
+        
+        // Build and upload model-view matrix
+        Matrix4f mv = buildModelViewMatrix(a);
+        shader.setModelViewMatrix(mv);
     }
 
     private void setupPickCamera(float a, int x, int y) {
@@ -168,7 +229,7 @@ public class VoxelGame implements Runnable {
         GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, 1000.0F);
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         GL11.glLoadIdentity();
-        this.moveCameraToPlayer(a);
+        moveCameraToPlayer(a);
     }
 
     private void pick(float a) {
@@ -215,6 +276,7 @@ public class VoxelGame implements Runnable {
         this.player.turn(xo, yo);
         this.pick(a);
 
+        // Handle mouse input
         while(Mouse.next()) {  
             if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult != null) {  
                 this.world.setBlock(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);  
@@ -234,6 +296,7 @@ public class VoxelGame implements Runnable {
             }  
         }  
 
+        // Handle keyboard input
         while(Keyboard.next()) {  
             if (Keyboard.getEventKey() == 28 && Keyboard.getEventKeyState()) {  
                 this.world.save();  
@@ -243,11 +306,13 @@ public class VoxelGame implements Runnable {
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);  
         this.setupCamera(a);  
         
-        // 使用Shader
+        // Upload matrices to shader if available
         if (shader != null) {
+            uploadMatricesToShader(a);
             shader.use();
-            shader.setUniform("hasTexture", 1);
-            shader.setUniform("hasColor", 1);
+            shader.setHasTexture(true);
+            shader.setHasColor(true);
+            shader.bindTextureUnit(0);
         }
         
         GL11.glEnable(GL11.GL_CULL_FACE);  

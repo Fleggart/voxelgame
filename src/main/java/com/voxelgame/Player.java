@@ -25,6 +25,7 @@ public class Player {
     public float yRot, xRot;
     public BoundingBox bb;
     public boolean onGround = false;
+    private boolean wasOnGround = false;
 
     public Player(World world) {
         this.world = world;
@@ -32,7 +33,7 @@ public class Player {
     }
 
     public void resetPos() {
-        pos.set((float) Math.random() * world.width, world.depth + 10, (float) Math.random() * world.height);
+        pos.set((float) Math.random() * world.width, world.height + 10, (float) Math.random() * world.depth);
         prevPos.set(pos);
         vel.zero();
         updateBoundingBox();
@@ -53,9 +54,12 @@ public class Player {
     public void tick() {
         prevPos.set(pos);
 
-        // --- Handle input ---
         float xa = 0, za = 0;
-        if ((Keyboard.isKeyDown(Keyboard.KEY_SPACE) || Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) && onGround) {
+
+        // -------------------------
+        // 输入
+        // -------------------------
+        if (isKeyDown(Keyboard.KEY_SPACE, Keyboard.KEY_LCONTROL) && onGround) {
             vel.y = JUMP_FORCE;
         }
 
@@ -63,80 +67,93 @@ public class Player {
         if (isKeyDown(Keyboard.KEY_DOWN, Keyboard.KEY_S)) za++;
         if (isKeyDown(Keyboard.KEY_LEFT, Keyboard.KEY_A)) xa--;
         if (isKeyDown(Keyboard.KEY_RIGHT, Keyboard.KEY_D)) xa++;
+
         if (Keyboard.isKeyDown(Keyboard.KEY_R)) resetPos();
 
+        // -------------------------
+        // 水平移动
+        // -------------------------
         float speed = onGround ? MOVE_SPEED_GROUND : MOVE_SPEED_AIR;
         moveRelative(xa, za, speed);
 
-        // --- Apply gravity ---
+        // -------------------------
+        // 重力
+        // -------------------------
         vel.y -= GRAVITY;
 
-        // --- Sub-step movement for stability ---
-        int steps = 2; // 可以根据速度提高 sub-step
-        float stepX = vel.x / steps;
-        float stepY = vel.y / steps;
-        float stepZ = vel.z / steps;
+        // -------------------------
+        // 碰撞检测
+        // -------------------------
+        moveWithCollision(vel.x, vel.y, vel.z);
 
-        for (int i = 0; i < steps; i++) {
-            move(stepX, stepY, stepZ);
-        }
+        // -------------------------
+        // 摩擦
+        // -------------------------
+        applyFriction();
 
-        // --- Apply friction ---
-        if (onGround) {
-            vel.x *= 0.8f;
-            vel.z *= 0.8f;
-        } else {
-            vel.x *= 0.98f;
-            vel.z *= 0.98f;
-        }
-        vel.y *= 0.98f; // slight air damping
-
+        // -------------------------
+        // 更新 AABB
+        // -------------------------
         updateBoundingBox();
+
+        // -------------------------
+        // 更新上帧地面状态
+        // -------------------------
+        wasOnGround = onGround;
     }
 
     private boolean isKeyDown(int key1, int key2) {
         return Keyboard.isKeyDown(key1) || Keyboard.isKeyDown(key2);
     }
 
-    public void move(float xa, float ya, float za) {
+    private void moveWithCollision(float xa, float ya, float za) {
         float xaOrg = xa, yaOrg = ya, zaOrg = za;
+
         List<BoundingBox> boxes = world.getCubes(bb.expand(xa, ya, za));
 
-        // Clip each axis
-        ya = collideY(boxes, ya);
+        // Y 方向
+        ya = clipCollideY(boxes, ya);
         bb.move(0, ya, 0);
 
-        xa = collideX(boxes, xa);
+        // X 方向
+        xa = clipCollideX(boxes, xa);
         bb.move(xa, 0, 0);
 
-        za = collideZ(boxes, za);
+        // Z 方向
+        za = clipCollideZ(boxes, za);
         bb.move(0, 0, za);
 
-        // Ground detection with epsilon
+        // 判断地面
         onGround = yaOrg < 0 && Math.abs(yaOrg - ya) > EPSILON;
 
-        // Zero velocity if collision
-        if (xaOrg != xa) vel.x = 0;
-        if (yaOrg != ya) vel.y = 0;
-        if (zaOrg != za) vel.z = 0;
+        // 修正速度
+        if (Math.abs(xaOrg - xa) > EPSILON) vel.x = 0;
+        if (Math.abs(yaOrg - ya) > EPSILON) vel.y = onGround ? 0 : vel.y;
+        if (Math.abs(zaOrg - za) > EPSILON) vel.z = 0;
 
-        // Update pos from bounding box
-        pos.x = (bb.x0 + bb.x1) / 2f;
-        pos.y = bb.y0 + HEIGHT; // 更稳定的 Y 同步，贴地更稳
-        pos.z = (bb.z0 + bb.z1) / 2f;
+        // 吸附地面
+        if (onGround && vel.y < 0) {
+            vel.y = 0;
+            pos.y = bb.y0 + HEIGHT; // 保持脚底在方块上
+        }
+
+        // 更新中心位置
+        pos.x = (bb.x0 + bb.x1) / 2;
+        pos.y = (bb.y0 + bb.y1) / 2;
+        pos.z = (bb.z0 + bb.z1) / 2;
     }
 
-    private float collideX(List<BoundingBox> boxes, float xa) {
+    private float clipCollideX(List<BoundingBox> boxes, float xa) {
         for (BoundingBox box : boxes) xa = box.clipXCollide(bb, xa);
         return xa;
     }
 
-    private float collideY(List<BoundingBox> boxes, float ya) {
+    private float clipCollideY(List<BoundingBox> boxes, float ya) {
         for (BoundingBox box : boxes) ya = box.clipYCollide(bb, ya);
         return ya;
     }
 
-    private float collideZ(List<BoundingBox> boxes, float za) {
+    private float clipCollideZ(List<BoundingBox> boxes, float za) {
         for (BoundingBox box : boxes) za = box.clipZCollide(bb, za);
         return za;
     }
@@ -155,5 +172,17 @@ public class Player {
 
         vel.x += xa * cos - za * sin;
         vel.z += za * cos + xa * sin;
+    }
+
+    private void applyFriction() {
+        float friction = 0.91f;
+        vel.x *= friction;
+        vel.z *= friction;
+        vel.y *= 0.98f;
+
+        if (onGround) {
+            vel.x *= 0.8f;
+            vel.z *= 0.8f;
+        }
     }
 }

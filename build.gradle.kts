@@ -38,8 +38,6 @@ dependencies {
 
 application {
     mainClass = "com.voxelgame.VoxelGame"
-    // Add native library path
-    applicationDefaultJvmArgs = listOf("-Djava.library.path=build/libs")
 }
 
 tasks.withType<JavaCompile> {
@@ -52,17 +50,11 @@ tasks.register<Copy>("extractNatives") {
         it.name.contains("natives") 
     })
     into("build/libs")
-    eachFile {
-        // Extract the native libraries from the JARs
-        if (name.endsWith(".dll") || name.endsWith(".so") || name.endsWith(".dylib")) {
-            // Keep the file as-is
-        }
-    }
     includeEmptyDirs = false
 }
 
-// Make run depend on extractNatives
-tasks.named("run") {
+// Configure the run task
+tasks.named<JavaExec>("run") {
     dependsOn("extractNatives")
     systemProperty("java.library.path", "build/libs")
 }

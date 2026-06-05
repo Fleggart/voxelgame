@@ -13,8 +13,8 @@ public class World {
     private final int[] lightDepths;
     private final List<WorldListener> listeners = new ArrayList<>();
     
-    private final int yzSize;
-    private final int zSize;
+    private final int yzSize;  // height * depth
+    private final int zSize;   // depth
 
     public World(int w, int h, int d) {
         this.width = w;
@@ -25,34 +25,14 @@ public class World {
         this.blocks = new byte[w * h * d];
         this.lightDepths = new int[w * h];
         
-        // 修正：Y=0 是地面，Y增加向上
-        int groundLevel = 0;  // 地面在 Y=0
-        int stoneDepth = d / 3;  // 石头深度
+        int grassLevel = d * 2 / 3;  // 草地层级
         
+        // 生成地形：Y轴向下为深度
         for (int x = 0; x < w; x++) {
             for (int z = 0; z < h; z++) {
                 for (int y = 0; y < d; y++) {
-                    if (y == groundLevel) {
-                        // 地面是草
-                        setBlockFast(x, y, z, 0);  // 0 = 草
-                    } else if (y < groundLevel) {
-                        // 地面以下是石头（空气，不生成）
-                        setBlockFast(x, y, z, 0);
-                    } else if (y <= stoneDepth) {
-                        // 地面以上一定深度是石头
-                        setBlockFast(x, y, z, 1);  // 1 = 石头
-                    } else {
-                        // 更高处是空气
-                        setBlockFast(x, y, z, -1);  // -1 = 空气
-                    }
+                    setBlockFast(x, y, z, y <= grassLevel ? 1 : 0); // 1=石头, 0=草
                 }
-            }
-        }
-        
-        // 确保地面是实心的
-        for (int x = 0; x < w; x++) {
-            for (int z = 0; z < h; z++) {
-                setBlockFast(x, groundLevel, z, 0);  // 草地面
             }
         }
         
@@ -60,23 +40,18 @@ public class World {
         load();
     }
     
+    // Y -> Z -> X 存储顺序
     private int index(int x, int y, int z) {
         return (y * height + z) * width + x;
     }
     
     private void setBlockFast(int x, int y, int z, int type) {
-        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
-            return;
-        }
         blocks[index(x, y, z)] = (byte)type;
     }
     
     public boolean isBlock(int x, int y, int z) {
-        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
-            return false;
-        }
-        byte block = blocks[index(x, y, z)];
-        return block == 0 || block == 1;  // 草或石头都是固体
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return false;
+        return blocks[index(x, y, z)] == 1;
     }
     
     public boolean isSolidBlock(int x, int y, int z) {
@@ -88,10 +63,7 @@ public class World {
     }
     
     public void setBlock(int x, int y, int z, int type) {
-        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
-            return;
-        }
-        
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return;
         setBlockFast(x, y, z, type);
         calcLightDepths(x, z, 1, 1);
         
@@ -106,7 +78,6 @@ public class World {
                 int idx = x + z * width;
                 int oldDepth = lightDepths[idx];
                 
-                // 从顶部向下找到第一个阻挡光线的方块
                 int y = depth - 1;
                 while (y > 0 && !isLightBlocker(x, y, z)) {
                     y--;
@@ -125,9 +96,7 @@ public class World {
     }
     
     public float getBrightness(int x, int y, int z) {
-        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
-            return 1.0f;
-        }
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) return 1.0f;
         return y < lightDepths[x + z * width] ? 0.8f : 1.0f;
     }
     

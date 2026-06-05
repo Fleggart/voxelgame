@@ -15,7 +15,6 @@ public class Player {
     
     private final World world;
     
-    // Position using JOML vectors
     public final Vector3f pos = new Vector3f();
     public final Vector3f prevPos = new Vector3f();
     public final Vector3f vel = new Vector3f();
@@ -30,8 +29,7 @@ public class Player {
     }
 
     public void resetPos() {
-        // 出生在地面高度 Y=1（站在草方块上）
-        pos.set((float)Math.random() * world.width, 1.0f, (float)Math.random() * world.height);
+        pos.set((float)Math.random() * world.width, world.depth + 10, (float)Math.random() * world.height);
         prevPos.set(pos);
         vel.zero();
         updateBoundingBox();
@@ -54,26 +52,21 @@ public class Player {
         
         float xa = 0, za = 0;
         
-        // Input handling - 跳跃
-        if (Keyboard.isKeyDown(Keyboard.KEY_SPACE) || Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) {
-            if (onGround) {
-                vel.y = JUMP_FORCE;
-            }
+        // Input handling
+        if ((Keyboard.isKeyDown(Keyboard.KEY_SPACE) || Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) && onGround) {
+            vel.y = JUMP_FORCE;
         }
         
-        // Movement keys: W/S/A/D or arrow keys
         if (isKeyDown(Keyboard.KEY_UP, Keyboard.KEY_W)) za--;
         if (isKeyDown(Keyboard.KEY_DOWN, Keyboard.KEY_S)) za++;
         if (isKeyDown(Keyboard.KEY_LEFT, Keyboard.KEY_A)) xa--;
         if (isKeyDown(Keyboard.KEY_RIGHT, Keyboard.KEY_D)) xa++;
         
-        // Reset position with R key
         if (Keyboard.isKeyDown(Keyboard.KEY_R)) resetPos();
         
         float speed = onGround ? MOVE_SPEED_GROUND : MOVE_SPEED_AIR;
         moveRelative(xa, za, speed);
         
-        // Apply gravity (向下为负)
         vel.y -= GRAVITY;
         move(vel.x, vel.y, vel.z);
         
@@ -99,7 +92,6 @@ public class Player {
         float xaOrg = xa, yaOrg = ya, zaOrg = za;
         var boxes = world.getCubes(bb.expand(xa, ya, za));
         
-        // 碰撞检测顺序: Y, X, Z
         ya = collideY(boxes, ya);
         bb.move(0, ya, 0);
         xa = collideX(boxes, xa);
@@ -107,38 +99,30 @@ public class Player {
         za = collideZ(boxes, za);
         bb.move(0, 0, za);
         
-        // 检测是否在地面上 (正在向下移动并且碰到了方块)
         onGround = yaOrg != ya && yaOrg < 0;
         
-        // 如果碰撞导致移动被阻挡，清零对应轴的速度
         if (xaOrg != xa) vel.x = 0;
         if (yaOrg != ya) vel.y = 0;
         if (zaOrg != za) vel.z = 0;
         
-        // 更新玩家位置 (眼睛高度在碰撞箱上方1.62格)
+        // 使用中心点防止飘起
         pos.x = (bb.x0 + bb.x1) / 2;
-        pos.y = bb.y0 + 1.62f;
+        pos.y = (bb.y0 + bb.y1) / 2;
         pos.z = (bb.z0 + bb.z1) / 2;
     }
     
     private float collideX(java.util.List<BoundingBox> boxes, float xa) {
-        for (var box : boxes) {
-            xa = box.clipXCollide(bb, xa);
-        }
+        for (var box : boxes) xa = box.clipXCollide(bb, xa);
         return xa;
     }
     
     private float collideY(java.util.List<BoundingBox> boxes, float ya) {
-        for (var box : boxes) {
-            ya = box.clipYCollide(bb, ya);
-        }
+        for (var box : boxes) ya = box.clipYCollide(bb, ya);
         return ya;
     }
     
     private float collideZ(java.util.List<BoundingBox> boxes, float za) {
-        for (var box : boxes) {
-            za = box.clipZCollide(bb, za);
-        }
+        for (var box : boxes) za = box.clipZCollide(bb, za);
         return za;
     }
 

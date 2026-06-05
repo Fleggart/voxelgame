@@ -20,6 +20,11 @@ dependencies {
     implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.3")
     implementation("org.lwjgl.lwjgl:lwjgl-platform:2.9.3")
     runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux")
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-windows")
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-macos")
+    
+    // JOML for modern math operations
+    implementation("org.joml:joml:1.10.5")
 }
 
 application {
@@ -30,7 +35,6 @@ tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
-// 设置运行时的JVM参数
 tasks.withType<JavaExec> {
     systemProperty("java.library.path", "build/libs")
 }

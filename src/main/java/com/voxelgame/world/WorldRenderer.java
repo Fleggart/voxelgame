@@ -3,21 +3,22 @@ package com.voxelgame.world;
 import com.voxelgame.HitResult;
 import com.voxelgame.Player;
 import com.voxelgame.physics.BoundingBox;
-import java.nio.FloatBuffer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
+import java.nio.FloatBuffer;
+
 public class WorldRenderer implements WorldListener {
     private static final int CHUNK_SIZE = 16;
-    private World world;
-    private Chunk[] chunks;
-    private int xChunks, yChunks, zChunks;
-    private MeshBuilder t = new MeshBuilder();
-    private FloatBuffer tempBuffer = BufferUtils.createFloatBuffer(10000);
+    private final World world;
+    private final Chunk[] chunks;
+    private final int xChunks, yChunks, zChunks;
+    private final FloatBuffer tempBuffer = BufferUtils.createFloatBuffer(10000);
 
     public WorldRenderer(World world) {
         this.world = world;
         world.addListener(this);
+
         this.xChunks = world.width / CHUNK_SIZE;
         this.yChunks = world.depth / CHUNK_SIZE;
         this.zChunks = world.height / CHUNK_SIZE;
@@ -48,53 +49,35 @@ public class WorldRenderer implements WorldListener {
         }
     }
 
-    public void pick(Player player) {
-        float r = 3.0F;
-        BoundingBox box = player.bb.grow(r, r, r);
-        int x0 = (int)box.x0;
-        int x1 = (int)(box.x1 + 1.0F);
-        int y0 = (int)box.y0;
-        int y1 = (int)(box.y1 + 1.0F);
-        int z0 = (int)box.z0;
-        int z1 = (int)(box.z1 + 1.0F);
-        
-        GL11.glInitNames();
-        for (int x = x0; x < x1; x++) {
-            GL11.glPushName(x);
-            for (int y = y0; y < y1; y++) {
-                GL11.glPushName(y);
-                for (int z = z0; z < z1; z++) {
-                    GL11.glPushName(z);
-                    if (world.isSolidBlock(x, y, z)) {
-                        for (int i = 0; i < 6; i++) {
-                            GL11.glPushName(i);
-                            
-                            // 使用立即模式渲染，用 STONE 代替 ROCK
-                            GL11.glBegin(GL11.GL_QUADS);
-                            Block.STONE.renderFaceImmediate(x, y, z, i);
-                            GL11.glEnd();
-                            
-                            GL11.glPopName();
-                        }
-                    }
-                    GL11.glPopName();
-                }
-                GL11.glPopName();
+    /** 用射线替代过时 picking */
+    public HitResult pickRay(Player player, float reach) {
+        float step = 0.1f;
+        BoundingBox bb = player.bb.copy();
+        float dx = - (float) Math.sin(Math.toRadians(player.yRot)) * (float) Math.cos(Math.toRadians(player.xRot));
+        float dy = (float) Math.sin(Math.toRadians(player.xRot));
+        float dz = (float) Math.cos(Math.toRadians(player.yRot)) * (float) Math.cos(Math.toRadians(player.xRot));
+
+        for (float t = 0; t < reach; t += step) {
+            int x = (int) (player.pos.x + dx * t);
+            int y = (int) (player.pos.y + dy * t);
+            int z = (int) (player.pos.z + dz * t);
+
+            if (world.isSolidBlock(x, y, z)) {
+                int face = 0; // 简单版本，可扩展
+                return new HitResult(x, y, z, face, 0);
             }
-            GL11.glPopName();
         }
+        return null;
     }
 
     public void renderHit(HitResult h) {
+        if (h == null) return;
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
-        GL11.glColor4f(1.0F, 1.0F, 1.0F, (float)Math.sin(System.currentTimeMillis() / 100.0) * 0.2F + 0.4F);
-        
-        // 使用立即模式渲染高亮方块，用 STONE 代替 ROCK
+        GL11.glColor4f(1f, 1f, 1f, (float) Math.sin(System.currentTimeMillis() / 100.0) * 0.2f + 0.4f);
         GL11.glBegin(GL11.GL_QUADS);
         Block.STONE.renderFaceImmediate(h.x, h.y, h.z, h.f);
         GL11.glEnd();
-        
         GL11.glDisable(GL11.GL_BLEND);
     }
 
@@ -105,7 +88,7 @@ public class WorldRenderer implements WorldListener {
         int cy1 = Math.min(yChunks - 1, y1 / CHUNK_SIZE);
         int cz0 = Math.max(0, z0 / CHUNK_SIZE);
         int cz1 = Math.min(zChunks - 1, z1 / CHUNK_SIZE);
-        
+
         for (int cx = cx0; cx <= cx1; cx++) {
             for (int cy = cy0; cy <= cy1; cy++) {
                 for (int cz = cz0; cz <= cz1; cz++) {
@@ -117,23 +100,21 @@ public class WorldRenderer implements WorldListener {
 
     public void cleanup() {
         for (Chunk chunk : chunks) {
-            if (chunk != null) {
-                chunk.cleanup();
-            }
+            if (chunk != null) chunk.cleanup();
         }
     }
 
-    @Override 
+    @Override
     public void blockChanged(int x, int y, int z) {
         setDirty(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);
     }
 
-    @Override 
+    @Override
     public void lightColumnChanged(int x, int z, int y0, int y1) {
         setDirty(x - 1, y0 - 1, z - 1, x + 1, y1 + 1, z + 1);
     }
 
-    @Override 
+    @Override
     public void allChanged() {
         setDirty(0, 0, 0, world.width, world.depth, world.height);
     }

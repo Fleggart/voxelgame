@@ -21,280 +21,191 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 public class VoxelGame implements Runnable {
-    private static final boolean FULLSCREEN_MODE = false;
+
     private int width;
     private int height;
-    private FloatBuffer fogColor;
-    private GameTimer timer = new GameTimer(60.0F);
+
     private World world;
     private WorldRenderer worldRenderer;
     private Player player;
+
+    private ShaderProgram shader;
+
+    private FloatBuffer fogColor;
+    private GameTimer timer = new GameTimer(60.0F);
+
     private IntBuffer viewportBuffer = BufferUtils.createIntBuffer(16);
     private IntBuffer selectBuffer = BufferUtils.createIntBuffer(2000);
-    private HitResult hitResult = null;
-    private ShaderProgram shader;
-    
-    // JOML matrices
+
+    private HitResult hitResult;
+
     private final Matrix4f projectionMatrix = new Matrix4f();
     private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
 
     public void init() throws LWJGLException, IOException {
-        int col = 920330;
-        float fr = 0.5F;
-        float fg = 0.8F;
-        float fb = 1.0F;
-        
-        this.fogColor = BufferUtils.createFloatBuffer(4);
-        this.fogColor.put(new float[]{
-            (float)(col >> 16 & 255) / 255.0F,
-            (float)(col >> 8 & 255) / 255.0F,
-            (float)(col & 255) / 255.0F,
-            1.0F
-        });
-        this.fogColor.flip();
-        
+
         Display.setDisplayMode(new DisplayMode(1024, 768));
         Display.create();
         Keyboard.create();
         Mouse.create();
-        
+
         this.width = Display.getDisplayMode().getWidth();
         this.height = Display.getDisplayMode().getHeight();
-        
+
         GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glShadeModel(GL11.GL_SMOOTH);
-        GL11.glClearColor(fr, fg, fb, 0.0F);
-        GL11.glClearDepth(1.0D);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
-        GL11.glDepthFunc(GL11.GL_LEQUAL);
-        
-        // Load Shader
+
+        fogColor = BufferUtils.createFloatBuffer(4);
+        fogColor.put(new float[]{0.5f, 0.8f, 1.0f, 1.0f}).flip();
+
         try {
             shader = new ShaderProgram("/vertex.glsl", "/fragment.glsl");
-            System.out.println("Shaders loaded successfully");
         } catch (Exception e) {
-            System.err.println("Failed to load shaders, falling back to fixed function");
-            e.printStackTrace();
             shader = null;
         }
-        
-        // Setup texture unit
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-        
-        this.world = new World(256, 256, 64);
-        this.worldRenderer = new WorldRenderer(this.world);
-        this.player = new Player(this.world);
-        Mouse.setGrabbed(true);
-        
-        // Initialize projection matrix
-        updateProjectionMatrix();
-    }
-    
-    private void updateProjectionMatrix() {
-        float aspect = (float) this.width / (float) this.height;
-        projectionMatrix.setPerspective((float) Math.toRadians(70.0F), aspect, 0.05F, 1000.0F);
-    }
 
-    public void destroy() {
-        if (shader != null) {
-            shader.cleanup();
-        }
-        if (worldRenderer != null) {
-            worldRenderer.cleanup();
-        }
-        this.world.save();
-        Mouse.destroy();
-        Keyboard.destroy();
-        Display.destroy();
+        world = new World(64, 64, 64);
+        worldRenderer = new WorldRenderer(world);
+        player = new Player(world);
+
+        Mouse.setGrabbed(true);
     }
 
     public void run() {
         try {
-            this.init();
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.toString(), "Failed to start VoxelGame", 0);
-            System.exit(0);
-            return;
-        }
-
-        long lastTime = System.currentTimeMillis();
-        int frames = 0;
-
-        try {
-            while (!Keyboard.isKeyDown(1) && !Display.isCloseRequested()) {
-                this.timer.advanceTime();
-
-                for (int i = 0; i < this.timer.ticks; ++i) {
-                    this.tick();
-                }
-
-                this.render(this.timer.a);
-                ++frames;
-
-                while (System.currentTimeMillis() >= lastTime + 1000L) {
-                    System.out.println(frames + " fps, " + Chunk.updates);
-                    Chunk.updates = 0;
-                    lastTime += 1000L;
-                    frames = 0;
-                }
-            }
+            init();
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            this.destroy();
+            System.exit(1);
         }
+
+        while (!Display.isCloseRequested() && !Keyboard.isKeyDown(1)) {
+
+            timer.advanceTime();
+
+            for (int i = 0; i < timer.ticks; i++) {
+                tick();
+            }
+
+            render(timer.a);
+        }
+
+        destroy();
     }
 
     public void tick() {
-        this.player.tick();
+        player.tick();
     }
 
-    private void moveCameraToPlayer(float a) {
-        // Interpolate player position
+    private void destroy() {
+        if (shader != null) shader.cleanup();
+        if (worldRenderer != null) worldRenderer.cleanup();
+        Display.destroy();
+        Keyboard.destroy();
+        Mouse.destroy();
+    }
+
+    // -----------------------------
+    // CAMERA
+    // -----------------------------
+
+    private void moveCamera(float a) {
+
         float x = player.prevPos.x + (player.pos.x - player.prevPos.x) * a;
         float y = player.prevPos.y + (player.pos.y - player.prevPos.y) * a;
         float z = player.prevPos.z + (player.pos.z - player.prevPos.z) * a;
-        
-        GL11.glTranslatef(0.0F, 0.0F, -0.3F);
-        GL11.glRotatef(player.xRot, 1.0F, 0.0F, 0.0F);
-        GL11.glRotatef(player.yRot, 0.0F, 1.0F, 0.0F);
+
+        GL11.glRotatef(player.xRot, 1, 0, 0);
+        GL11.glRotatef(player.yRot, 0, 1, 0);
         GL11.glTranslatef(-x, -y, -z);
     }
 
     private void setupCamera(float a) {
         GL11.glMatrixMode(GL11.GL_PROJECTION);
         GL11.glLoadIdentity();
-        GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, 1000.0F);
+        GLU.gluPerspective(70, (float) width / height, 0.05f, 1000f);
+
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         GL11.glLoadIdentity();
-        moveCameraToPlayer(a);
+
+        moveCamera(a);
     }
 
-    private void setupPickCamera(float a, int x, int y) {
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
-        this.viewportBuffer.clear();
-        GL11.glGetInteger(GL11.GL_VIEWPORT, this.viewportBuffer);
-        this.viewportBuffer.flip();
-        this.viewportBuffer.limit(16);
-        GLU.gluPickMatrix((float)x, (float)y, 5.0F, 5.0F, this.viewportBuffer);
-        GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, 1000.0F);
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glLoadIdentity();
-        moveCameraToPlayer(a);
-    }
+    // -----------------------------
+    // PICK
+    // -----------------------------
 
     private void pick(float a) {
-        this.selectBuffer.clear();
-        GL11.glSelectBuffer(this.selectBuffer);
+
+        selectBuffer.clear();
+        GL11.glSelectBuffer(selectBuffer);
+
         GL11.glRenderMode(GL11.GL_SELECT);
-        this.setupPickCamera(a, this.width / 2, this.height / 2);
-        this.worldRenderer.pick(this.player);
+
+        setupCamera(a);
+
+        worldRenderer.pick(player);
+
         int hits = GL11.glRenderMode(GL11.GL_RENDER);
-        this.selectBuffer.flip();
-        this.selectBuffer.limit(this.selectBuffer.capacity());
-        long closest = 0L;
-        int[] names = new int[10];
-        int hitNameCount = 0;
 
-        for(int i = 0; i < hits; ++i) {  
-            int nameCount = this.selectBuffer.get();  
-            long minZ = (long)this.selectBuffer.get();  
-            this.selectBuffer.get();  
-            if (minZ >= closest && i != 0) {  
-                for(int j = 0; j < nameCount; ++j) {  
-                    this.selectBuffer.get();  
-                }  
-            } else {  
-                closest = minZ;  
-                hitNameCount = nameCount;  
-
-                for(int j = 0; j < nameCount; ++j) {  
-                    names[j] = this.selectBuffer.get();  
-                }  
-            }  
-        }  
-
-        if (hitNameCount > 0) {  
-            this.hitResult = new HitResult(names[0], names[1], names[2], names[3], names[4]);  
-        } else {  
-            this.hitResult = null;  
+        if (hits > 0) {
+            hitResult = new HitResult(0, 0, 0, 0, 0);
+        } else {
+            hitResult = null;
         }
     }
 
+    // -----------------------------
+    // RENDER
+    // -----------------------------
+
     public void render(float a) {
-        float xo = (float)Mouse.getDX();
-        float yo = (float)Mouse.getDY();
-        this.player.turn(xo, yo);
-        this.pick(a);
 
-        while(Mouse.next()) {  
-            if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult != null) {  
-                this.world.setBlock(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);  
-            }  
+        float mx = Mouse.getDX();
+        float my = Mouse.getDY();
 
-            if (Mouse.getEventButton() == 0 && Mouse.getEventButtonState() && this.hitResult != null) {  
-                int x = this.hitResult.x;  
-                int y = this.hitResult.y;  
-                int z = this.hitResult.z;  
-                if (this.hitResult.f == 0) --y;  
-                if (this.hitResult.f == 1) ++y;  
-                if (this.hitResult.f == 2) --z;  
-                if (this.hitResult.f == 3) ++z;  
-                if (this.hitResult.f == 4) --x;  
-                if (this.hitResult.f == 5) ++x;  
-                this.world.setBlock(x, y, z, 1);  
-            }  
-        }  
+        player.turn(mx, my);
 
-        while(Keyboard.next()) {  
-            if (Keyboard.getEventKey() == 28 && Keyboard.getEventKeyState()) {  
-                this.world.save();  
-            }  
-        }  
+        pick(a);
 
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);  
-        this.setupCamera(a);  
-        
-        // Use shader if available
-        if (shader != null) {
-            shader.use();
-            shader.setUniform("hasTexture", 1);
-            shader.setUniform("hasColor", 1);
+        while (Mouse.next()) {
+
+            if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && hitResult != null) {
+                world.setBlock(hitResult.x, hitResult.y, hitResult.z, 0);
+            }
+
+            if (Mouse.getEventButton() == 0 && Mouse.getEventButtonState() && hitResult != null) {
+                world.setBlock(hitResult.x, hitResult.y, hitResult.z, 1);
+            }
         }
-        
-        GL11.glEnable(GL11.GL_CULL_FACE);  
-        GL11.glEnable(GL11.GL_FOG);  
-        GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);  
-        GL11.glFogf(GL11.GL_FOG_DENSITY, 0.2F);  
-        GL11.glFog(GL11.GL_FOG_COLOR, this.fogColor);  
-        GL11.glDisable(GL11.GL_FOG);  
-        this.worldRenderer.render(this.player, 0);  
-        GL11.glEnable(GL11.GL_FOG);  
-        this.worldRenderer.render(this.player, 1);  
-        GL11.glDisable(GL11.GL_TEXTURE_2D);  
-        
-        if (this.hitResult != null) {  
-            this.worldRenderer.renderHit(this.hitResult);  
-        }  
-        
-        GL11.glDisable(GL11.GL_FOG);  
-        
-        if (shader != null) {
-            shader.stop();
+
+        while (Keyboard.next()) {
+            if (Keyboard.getEventKey() == Keyboard.KEY_RETURN) {
+                world.save();
+            }
         }
-        
+
+        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+
+        setupCamera(a);
+
+        if (shader != null) shader.use();
+
+        GL11.glEnable(GL11.GL_CULL_FACE);
+
+        worldRenderer.render(player, 0);
+        worldRenderer.render(player, 1);
+
+        if (hitResult != null) {
+            worldRenderer.renderHit(hitResult);
+        }
+
+        if (shader != null) shader.stop();
+
         Display.update();
     }
 
-    public static void checkError() {
-        int e = GL11.glGetError();
-        if (e != 0) {
-            throw new IllegalStateException(GLU.gluErrorString(e));
-        }
-    }
-
-    public static void main(String[] args) throws LWJGLException {
-        (new Thread(new VoxelGame())).start();
+    public static void main(String[] args) {
+        new Thread(new VoxelGame()).start();
     }
 }

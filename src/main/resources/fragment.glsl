@@ -1,6 +1,6 @@
-#version 110
+#version 120
 
-uniform sampler2D texture;
+uniform sampler2D u_texture;
 uniform bool hasTexture;
 uniform bool hasColor;
 
@@ -11,7 +11,7 @@ void main() {
     vec4 finalColor;
     
     if (hasTexture) {
-        finalColor = texture2D(texture, texCoord);
+        finalColor = texture2D(u_texture, texCoord);
         if (hasColor) {
             finalColor *= vec4(color, 1.0);
         }

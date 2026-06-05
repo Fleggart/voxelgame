@@ -1,4 +1,4 @@
-#version 110
+#version 120
 
 attribute vec3 in_position;
 attribute vec2 in_texCoord;

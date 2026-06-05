@@ -13,8 +13,8 @@ public class World {
     private final int[] lightDepths;
     private final List<WorldListener> listeners = new ArrayList<>();
     
-    private final int yzSize;  // height * depth
-    private final int zSize;   // depth
+    private final int yzSize;
+    private final int zSize;
 
     public World(int w, int h, int d) {
         this.width = w;
@@ -25,15 +25,34 @@ public class World {
         this.blocks = new byte[w * h * d];
         this.lightDepths = new int[w * h];
         
-        int grassLevel = d * 2 / 3;  // 草地层级，2/3高度以下为石头
+        // 修正：Y=0 是地面，Y增加向上
+        int groundLevel = 0;  // 地面在 Y=0
+        int stoneDepth = d / 3;  // 石头深度
         
-        // 生成地形：Y轴向下为深度
         for (int x = 0; x < w; x++) {
             for (int z = 0; z < h; z++) {
                 for (int y = 0; y < d; y++) {
-                    // y <= grassLevel 为石头(1)，y > grassLevel 为草(0)
-                    setBlockFast(x, y, z, y <= grassLevel ? 1 : 0);
+                    if (y == groundLevel) {
+                        // 地面是草
+                        setBlockFast(x, y, z, 0);  // 0 = 草
+                    } else if (y < groundLevel) {
+                        // 地面以下是石头（空气，不生成）
+                        setBlockFast(x, y, z, 0);
+                    } else if (y <= stoneDepth) {
+                        // 地面以上一定深度是石头
+                        setBlockFast(x, y, z, 1);  // 1 = 石头
+                    } else {
+                        // 更高处是空气
+                        setBlockFast(x, y, z, -1);  // -1 = 空气
+                    }
                 }
+            }
+        }
+        
+        // 确保地面是实心的
+        for (int x = 0; x < w; x++) {
+            for (int z = 0; z < h; z++) {
+                setBlockFast(x, groundLevel, z, 0);  // 草地面
             }
         }
         
@@ -41,46 +60,33 @@ public class World {
         load();
     }
     
-    /**
-     * 将3D坐标转换为一维数组索引
-     * 存储顺序: Y -> Z -> X (Y轴变化最快)
-     */
     private int index(int x, int y, int z) {
         return (y * height + z) * width + x;
     }
     
     private void setBlockFast(int x, int y, int z, int type) {
+        if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
+            return;
+        }
         blocks[index(x, y, z)] = (byte)type;
     }
     
-    /**
-     * 检查指定位置是否有方块
-     */
     public boolean isBlock(int x, int y, int z) {
         if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
             return false;
         }
-        return blocks[index(x, y, z)] == 1;  // 1表示石头，0表示草
+        byte block = blocks[index(x, y, z)];
+        return block == 0 || block == 1;  // 草或石头都是固体
     }
     
-    /**
-     * 检查是否为固体方块（用于碰撞检测）
-     */
     public boolean isSolidBlock(int x, int y, int z) {
         return isBlock(x, y, z);
     }
     
-    /**
-     * 检查是否为阻挡光线的方块
-     */
     public boolean isLightBlocker(int x, int y, int z) {
         return isBlock(x, y, z);
     }
     
-    /**
-     * 设置指定位置的方块
-     * @param type 0=草, 1=石头, 其他=空气
-     */
     public void setBlock(int x, int y, int z, int type) {
         if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
             return;
@@ -94,9 +100,6 @@ public class World {
         }
     }
     
-    /**
-     * 计算指定列的光照深度
-     */
     public void calcLightDepths(int x0, int z0, int w, int h) {
         for (int x = x0; x < x0 + w; x++) {
             for (int z = z0; z < z0 + h; z++) {
@@ -121,10 +124,6 @@ public class World {
         }
     }
     
-    /**
-     * 获取指定位置的亮度
-     * @return 0.8f（阴影）或 1.0f（光照）
-     */
     public float getBrightness(int x, int y, int z) {
         if (x < 0 || y < 0 || z < 0 || x >= width || y >= depth || z >= height) {
             return 1.0f;
@@ -132,9 +131,6 @@ public class World {
         return y < lightDepths[x + z * width] ? 0.8f : 1.0f;
     }
     
-    /**
-     * 获取与AABB碰撞的所有方块
-     */
     public List<BoundingBox> getCubes(BoundingBox aabb) {
         List<BoundingBox> boxes = new ArrayList<>();
         
@@ -158,9 +154,6 @@ public class World {
         return boxes;
     }
     
-    /**
-     * 从文件加载世界
-     */
     public void load() {
         File file = new File("world.dat");
         if (!file.exists()) {
@@ -182,9 +175,6 @@ public class World {
         }
     }
     
-    /**
-     * 保存世界到文件
-     */
     public void save() {
         try (DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(new File("world.dat"))))) {
             dos.write(this.blocks);
@@ -194,16 +184,10 @@ public class World {
         }
     }
     
-    /**
-     * 添加世界监听器（用于区块更新）
-     */
     public void addListener(WorldListener l) {
         listeners.add(l);
     }
     
-    /**
-     * 移除世界监听器
-     */
     public void removeListener(WorldListener l) {
         listeners.remove(l);
     }

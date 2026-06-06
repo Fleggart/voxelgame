@@ -1,125 +1,144 @@
 package com.voxelgame;
 
-import com.voxelgame.graphics.ShaderProgram;
-import com.voxelgame.world.Chunk;
-import com.voxelgame.world.World;
-import com.voxelgame.world.WorldRenderer;
-import org.joml.Matrix4f;
-import org.lwjgl.BufferUtils;
-import org.lwjgl.LWJGLException;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.DisplayMode;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.util.glu.GLU;
+import com.voxelgame.level.*;
+import com.voxelgame.player.Player;
+import org.lwjgl.glfw.*;
+import org.lwjgl.opengl.*;
+import org.lwjgl.system.MemoryStack;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.IOException;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+
+import static org.lwjgl.glfw.Callbacks.*;
+import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.system.MemoryStack.*;
+import static org.lwjgl.system.MemoryUtil.*;
 
 public class VoxelGame implements Runnable {
-
-    private static final boolean FULLSCREEN_MODE = false;
-    private int width, height;
-    private FloatBuffer fogColor;
-    private GameTimer timer = new GameTimer(60.0F);
-    private World world;
-    private WorldRenderer worldRenderer;
-    private Player player;
-    private ShaderProgram shader;
+    private long window;
+    private int width = 1024;
+    private int height = 768;
     
-    private final Matrix4f projectionMatrix = new Matrix4f();
-    private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
-
-    private WorldRenderer.HitResult hitResult = null;
-
-    public void init() throws LWJGLException, IOException {
-
-        int col = 0xE0CCFA;
-        float fr = 0.5F, fg = 0.8F, fb = 1.0F;
-
-        fogColor = BufferUtils.createFloatBuffer(4);
-        fogColor.put(new float[]{
-            (float)(col >> 16 & 255) / 255.0F,
-            (float)(col >> 8 & 255) / 255.0F,
-            (float)(col & 255) / 255.0F,
-            1.0F
-        }).flip();
-
-        Display.setDisplayMode(new DisplayMode(1024, 768));
-        Display.create();
-        Keyboard.create();
-        Mouse.create();
-        Mouse.setGrabbed(true);
-
-        width = Display.getDisplayMode().getWidth();
-        height = Display.getDisplayMode().getHeight();
-
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glShadeModel(GL11.GL_SMOOTH);
-        GL11.glClearColor(fr, fg, fb, 0.0F);
-        GL11.glClearDepth(1.0D);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
-        GL11.glDepthFunc(GL11.GL_LEQUAL);
-
-        try {
-            shader = new ShaderProgram("/vertex.glsl", "/fragment.glsl");
-            System.out.println("Shaders loaded successfully");
-        } catch (Exception e) {
-            System.err.println("Failed to load shaders, falling back to fixed function");
-            e.printStackTrace();
-            shader = null;
+    private final FloatBuffer fogColor = FloatBuffer.allocate(4);
+    private Timer timer;
+    private Level level;
+    private LevelRenderer levelRenderer;
+    private Player player;
+    private final IntBuffer viewportBuffer = IntBuffer.allocate(16);
+    private final IntBuffer selectBuffer = IntBuffer.allocate(2000);
+    private HitResult hitResult = null;
+    
+    private boolean running = true;
+    
+    public static void main(String[] args) {
+        new Thread(new VoxelGame()).start();
+    }
+    
+    public void init() throws IOException {
+        // 初始化 GLFW
+        if (!glfwInit()) {
+            throw new IllegalStateException("Unable to initialize GLFW");
         }
-
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-
-        world = new World(256, 64, 256);  // width, height, depth
-        worldRenderer = new WorldRenderer(world);
-        player = new Player(world);
-
-        updateProjectionMatrix();
+        
+        // 配置 GLFW
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        
+        // 创建窗口
+        window = glfwCreateWindow(width, height, "Voxel Game", NULL, NULL);
+        if (window == NULL) {
+            throw new RuntimeException("Failed to create GLFW window");
+        }
+        
+        // 设置键盘和鼠标回调
+        glfwSetKeyCallback(window, (win, key, scancode, action, mods) -> {
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+                glfwSetWindowShouldClose(win, true);
+            }
+        });
+        
+        // 设置鼠标输入
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        
+        // 创建 OpenGL 上下文
+        glfwMakeContextCurrent(window);
+        GL.createCapabilities();
+        
+        // 启用垂直同步
+        glfwSwapInterval(1);
+        
+        // 显示窗口
+        glfwShowWindow(window);
+        
+        // 设置背景颜色
+        int col = 920330;
+        float fr = 0.5F;
+        float fg = 0.8F;
+        float fb = 1.0F;
+        
+        fogColor.put(new float[]{
+            (col >> 16 & 0xFF) / 255.0F,
+            (col >> 8 & 0xFF) / 255.0F,
+            (col & 0xFF) / 255.0F,
+            1.0F
+        });
+        fogColor.flip();
+        
+        // OpenGL 初始化
+        glEnable(GL_TEXTURE_2D);
+        glShadeModel(GL_SMOOTH);
+        glClearColor(fr, fg, fb, 0.0F);
+        glClearDepth(1.0);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
+        
+        // 初始化游戏组件
+        timer = new Timer(60.0F);
+        level = new Level(256, 256, 64);
+        levelRenderer = new LevelRenderer(level);
+        player = new Player(level);
     }
-
-    private void updateProjectionMatrix() {
-        float aspect = (float) width / (float) height;
-        projectionMatrix.setPerspective((float) Math.toRadians(70.0F), aspect, 0.05F, 1000.0F);
-    }
-
+    
     public void destroy() {
-        if (shader != null) shader.cleanup();
-        if (worldRenderer != null) worldRenderer.cleanup();
-        if (world != null) world.save();
-
-        Mouse.destroy();
-        Keyboard.destroy();
-        Display.destroy();
+        level.save();
+        if (window != NULL) {
+            glfwFreeCallbacks(window);
+            glfwDestroyWindow(window);
+        }
+        glfwTerminate();
     }
-
+    
     @Override
     public void run() {
         try {
             init();
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.toString(), "Failed to start VoxelGame", 0);
+            JOptionPane.showMessageDialog(null, e.toString(), "Failed to start Voxel Game", 0);
             System.exit(0);
-            return;
         }
-
+        
         long lastTime = System.currentTimeMillis();
         int frames = 0;
-
+        
         try {
-            while (!Keyboard.isKeyDown(Keyboard.KEY_ESCAPE) && !Display.isCloseRequested()) {
-
+            while (running && !glfwWindowShouldClose(window)) {
                 timer.advanceTime();
-
-                for (int i = 0; i < timer.ticks; i++) tick();
-
-                render(timer.a);
+                
+                for (int i = 0; i < timer.ticks; i++) {
+                    tick();
+                }
+                
+                render(timer.partialTick);
                 frames++;
-
+                
                 if (System.currentTimeMillis() >= lastTime + 1000L) {
                     System.out.println(frames + " fps, " + Chunk.updates);
                     Chunk.updates = 0;
@@ -133,92 +152,171 @@ public class VoxelGame implements Runnable {
             destroy();
         }
     }
-
+    
     public void tick() {
         player.tick();
+        
+        // 处理鼠标输入
+        double[] mouseX = new double[1];
+        double[] mouseY = new double[1];
+        glfwGetCursorPos(window, mouseX, mouseY);
+        
+        int centerX = width / 2;
+        int centerY = height / 2;
+        
+        float dx = (float)(mouseX[0] - centerX);
+        float dy = (float)(mouseY[0] - centerY);
+        
+        player.turn(dx, dy);
+        
+        // 重置鼠标位置到中心
+        glfwSetCursorPos(window, centerX, centerY);
     }
-
-    private void moveCameraToPlayer(float a) {
-        // 修复: 使用 prev 而不是 prevPos
-        float x = player.prev.x + (player.pos.x - player.prev.x) * a;
-        float y = player.prev.y + (player.pos.y - player.prev.y) * a;
-        float z = player.prev.z + (player.pos.z - player.prev.z) * a;
-
-        GL11.glTranslatef(0.0F, 0.0F, -0.3F);
-        GL11.glRotatef(player.xRot, 1.0F, 0.0F, 0.0F);
-        GL11.glRotatef(player.yRot, 0.0F, 1.0F, 0.0F);
-        GL11.glTranslatef(-x, -y, -z);
+    
+    private void moveCameraToPlayer(float partialTick) {
+        glTranslatef(0.0F, 0.0F, -0.3F);
+        glRotatef(player.xRot, 1.0F, 0.0F, 0.0F);
+        glRotatef(player.yRot, 0.0F, 1.0F, 0.0F);
+        
+        float x = player.xo + (player.x - player.xo) * partialTick;
+        float y = player.yo + (player.y - player.yo) * partialTick;
+        float z = player.zo + (player.z - player.zo) * partialTick;
+        
+        glTranslatef(-x, -y, -z);
     }
-
-    private void setupCamera(float a) {
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
-        GLU.gluPerspective(70.0F, (float) width / height, 0.05F, 1000.0F);
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glLoadIdentity();
-        moveCameraToPlayer(a);
+    
+    private void setupCamera(float partialTick) {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        
+        // 透视投影
+        float aspect = (float) width / (float) height;
+        float fov = 70.0F;
+        float nearPlane = 0.05F;
+        float farPlane = 1000.0F;
+        
+        float top = (float) Math.tan(Math.toRadians(fov / 2)) * nearPlane;
+        float bottom = -top;
+        float right = top * aspect;
+        float left = -right;
+        
+        glFrustum(left, right, bottom, top, nearPlane, farPlane);
+        
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        moveCameraToPlayer(partialTick);
     }
-
-    public void render(float a) {
-        float xo = Mouse.getDX();
-        float yo = Mouse.getDY();
-
-        player.turn(xo, yo);
-
-        hitResult = worldRenderer.pickRay(player, 5.0f);
-
-        while (Mouse.next()) {
-            if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && hitResult != null) {
-                world.setBlock(hitResult.x, hitResult.y, hitResult.z, 0);
+    
+    private void setupPickCamera(float partialTick, int x, int y) {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        
+        viewportBuffer.clear();
+        glGetIntegerv(GL_VIEWPORT, viewportBuffer);
+        viewportBuffer.flip();
+        
+        // 选择模式下的特殊投影
+        double[] modelview = new double[16];
+        double[] projection = new double[16];
+        
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        
+        // 简单实现：使用相同的投影
+        float aspect = (float) width / (float) height;
+        float top = (float) Math.tan(Math.toRadians(35.0)) * 0.05F;
+        float bottom = -top;
+        float right = top * aspect;
+        float left = -right;
+        glFrustum(left, right, bottom, top, 0.05F, 1000.0F);
+        
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        moveCameraToPlayer(partialTick);
+    }
+    
+    private void pick(float partialTick) {
+        selectBuffer.clear();
+        
+        // 保存当前状态
+        glRenderMode(GL_SELECT);
+        
+        setupPickCamera(partialTick, width / 2, height / 2);
+        
+        // 简化实现：只检测点击的方块
+        levelRenderer.pick(player);
+        
+        int hits = glRenderMode(GL_RENDER);
+        
+        if (hits > 0) {
+            // 处理选择结果（简化版）
+            hitResult = new HitResult(0, 0, 0, 0, 0);
+        } else {
+            hitResult = null;
+        }
+    }
+    
+    public void render(float partialTick) {
+        // 处理鼠标点击
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            if (hitResult != null) {
+                level.setTile(hitResult.x, hitResult.y, hitResult.z, 0);
             }
-
-            if (Mouse.getEventButton() == 0 && Mouse.getEventButtonState() && hitResult != null) {
+        }
+        
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+            if (hitResult != null) {
                 int x = hitResult.x;
                 int y = hitResult.y;
                 int z = hitResult.z;
-
-                if (hitResult.f == 0) --y;
-                if (hitResult.f == 1) ++y;
-                if (hitResult.f == 2) --z;
-                if (hitResult.f == 3) ++z;
-                if (hitResult.f == 4) --x;
-                if (hitResult.f == 5) ++x;
-
-                world.setBlock(x, y, z, 1);
+                
+                switch (hitResult.f) {
+                    case 0 -> y--;
+                    case 1 -> y++;
+                    case 2 -> z--;
+                    case 3 -> z++;
+                    case 4 -> x--;
+                    case 5 -> x++;
+                }
+                level.setTile(x, y, z, 1);
             }
         }
-
-        while (Keyboard.next()) {
-            if (Keyboard.getEventKey() == Keyboard.KEY_RETURN && Keyboard.getEventKeyState()) {
-                world.save();
-            }
-        }
-
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-
-        setupCamera(a);
-
-        if (shader != null) {
-            shader.use();
-            shader.setUniform("hasTexture", 1);
-            shader.setUniform("hasColor", 1);
-        }
-
-        GL11.glEnable(GL11.GL_CULL_FACE);
-
-        worldRenderer.render(player, 0);
-        worldRenderer.render(player, 1);
-
+        
+        // 渲染
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        setupCamera(partialTick);
+        
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_FOG);
+        glFogi(GL_FOG_MODE, GL_LINEAR);
+        glFogf(GL_FOG_START, 0.2F);
+        glFogf(GL_FOG_END, 0.5F);
+        glFogfv(GL_FOG_COLOR, fogColor);
+        
+        // 渲染不透明物体
+        glDisable(GL_FOG);
+        levelRenderer.render(player, 0);
+        
+        // 渲染半透明物体
+        glEnable(GL_FOG);
+        levelRenderer.render(player, 1);
+        
+        glDisable(GL_TEXTURE_2D);
+        
         if (hitResult != null) {
-            worldRenderer.renderHit(hitResult);
+            levelRenderer.renderHit(hitResult);
         }
-
-        if (shader != null) shader.stop();
-
-        Display.update();
+        
+        glDisable(GL_FOG);
+        
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
-
-    public static void main(String[] args) throws LWJGLException {
-        new Thread(new VoxelGame()).start();
+    
+    public static void checkError() {
+        int e = glGetError();
+        if (e != GL_NO_ERROR) {
+            throw new IllegalStateException("OpenGL Error: " + e);
+        }
     }
 }

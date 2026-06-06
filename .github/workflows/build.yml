@@ -22,7 +22,7 @@ jobs:
         with:
           gradle-version: 9.5.1
           cache-disabled: false
-          gradle-home-cache-cleanup: true
+          cache-cleanup: true
       
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew

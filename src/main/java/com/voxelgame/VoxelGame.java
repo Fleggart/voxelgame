@@ -37,6 +37,7 @@ public class VoxelGame implements Runnable {
     private HitResult hitResult = null;
     
     private boolean running = true;
+    private boolean mouseGrabbed = true;
     
     public static void main(String[] args) {
         System.out.println("[DEBUG] === VoxelGame main() started ===");
@@ -89,12 +90,18 @@ public class VoxelGame implements Runnable {
                 if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                     glfwSetWindowShouldClose(win, true);
                 }
+                // 按 F1 切换鼠标捕获
+                if (key == GLFW_KEY_F1 && action == GLFW_RELEASE) {
+                    mouseGrabbed = !mouseGrabbed;
+                    glfwSetInputMode(window, GLFW_CURSOR, mouseGrabbed ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+                    System.out.println("[DEBUG] Mouse grabbed: " + mouseGrabbed);
+                }
             });
             System.out.println("[DEBUG] init: key callback set");
             
-            // 设置鼠标输入
+            // 设置鼠标输入 - 初始为捕获模式
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            System.out.println("[DEBUG] init: mouse input mode set");
+            System.out.println("[DEBUG] init: mouse input mode set to DISABLED");
             
             // 创建 OpenGL 上下文
             System.out.println("[DEBUG] init: making context current");
@@ -113,8 +120,7 @@ public class VoxelGame implements Runnable {
             glfwShowWindow(window);
             System.out.println("[DEBUG] init: window shown");
             
-            // ========== 关键修复：强制重置窗口关闭标志 ==========
-            // 在 Android/EGL 环境下，窗口可能被错误标记为 "should close"
+            // 强制重置窗口关闭标志
             glfwSetWindowShouldClose(window, false);
             System.out.println("[DEBUG] init: force reset window shouldClose = false");
             
@@ -125,7 +131,6 @@ public class VoxelGame implements Runnable {
             System.out.println("[DEBUG] init: window status - visible=" + visible + 
                                ", focused=" + focused + 
                                ", shouldClose=" + shouldClose);
-            // =================================================
             
             // 设置背景颜色
             int col = 920330;
@@ -165,6 +170,17 @@ public class VoxelGame implements Runnable {
             
             System.out.println("[DEBUG] init: creating Player");
             player = new Player(level);
+            
+            // 获取并保存窗口实际尺寸（全屏时可能不同）
+            int[] winWidth = new int[1];
+            int[] winHeight = new int[1];
+            glfwGetWindowSize(window, winWidth, winHeight);
+            this.width = winWidth[0];
+            this.height = winHeight[0];
+            System.out.println("[DEBUG] init: actual window size - " + width + "x" + height);
+            
+            // 重置鼠标位置到窗口中心
+            glfwSetCursorPos(window, width / 2, height / 2);
             
             // 检查 OpenGL 错误
             checkError();
@@ -263,11 +279,7 @@ public class VoxelGame implements Runnable {
     }
     
     public void tick() {
-        if (player != null) {
-            player.tick();
-        }
-        
-        // 处理鼠标输入
+        // 处理鼠标输入 - 实现类似 Mouse.getDX() 的效果
         double[] mouseX = new double[1];
         double[] mouseY = new double[1];
         glfwGetCursorPos(window, mouseX, mouseY);
@@ -275,15 +287,24 @@ public class VoxelGame implements Runnable {
         int centerX = width / 2;
         int centerY = height / 2;
         
+        // 计算鼠标增量（模拟 getDX/getDY）
         float dx = (float)(mouseX[0] - centerX);
         float dy = (float)(mouseY[0] - centerY);
         
-        if (player != null) {
+        // 只有在鼠标捕获模式下才处理视角旋转
+        if (mouseGrabbed && (dx != 0 || dy != 0)) {
             player.turn(dx, dy);
         }
         
-        // 重置鼠标位置到中心
-        glfwSetCursorPos(window, centerX, centerY);
+        // 重置鼠标位置到中心（模拟鼠标捕获）
+        if (mouseGrabbed) {
+            glfwSetCursorPos(window, centerX, centerY);
+        }
+        
+        // 更新玩家逻辑（移动、跳跃等）
+        if (player != null) {
+            player.tick();
+        }
     }
     
     private void moveCameraToPlayer(float partialTick) {

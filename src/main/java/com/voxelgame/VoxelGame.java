@@ -39,113 +39,173 @@ public class VoxelGame implements Runnable {
     private boolean running = true;
     
     public static void main(String[] args) {
+        System.out.println("[DEBUG] === VoxelGame main() started ===");
+        
         // 设置系统属性以启用调试
         System.setProperty("org.lwjgl.util.Debug", "true");
         System.setProperty("org.lwjgl.system.allocator", "system");
+        System.setProperty("org.lwjgl.util.DebugLoader", "true");
         
-        new Thread(new VoxelGame()).start();
+        System.out.println("[DEBUG] System properties set");
+        
+        VoxelGame game = new VoxelGame();
+        System.out.println("[DEBUG] Game instance created, calling run()");
+        
+        game.run();
+        
+        System.out.println("[DEBUG] === VoxelGame main() finished ===");
     }
     
-    public void init() throws IOException {
-        // 初始化 GLFW
-        if (!glfwInit()) {
-            throw new IllegalStateException("Unable to initialize GLFW");
-        }
+    public void init() {
+        System.out.println("[DEBUG] init: start");
         
-        // 配置 GLFW - 使用更兼容的设置
-        glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-        
-        // 创建窗口
-        window = glfwCreateWindow(width, height, "Voxel Game", NULL, NULL);
-        if (window == NULL) {
-            throw new RuntimeException("Failed to create GLFW window");
-        }
-        
-        // 设置键盘回调
-        glfwSetKeyCallback(window, (win, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
-                glfwSetWindowShouldClose(win, true);
+        try {
+            System.out.println("[DEBUG] init: initializing GLFW");
+            if (!glfwInit()) {
+                throw new IllegalStateException("Unable to initialize GLFW");
             }
-        });
-        
-        // 设置鼠标输入
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        
-        // 创建 OpenGL 上下文
-        glfwMakeContextCurrent(window);
-        GL.createCapabilities();
-        
-        // 启用垂直同步
-        glfwSwapInterval(1);
-        
-        // 显示窗口
-        glfwShowWindow(window);
-        
-        // 设置背景颜色
-        int col = 920330;
-        float fr = 0.5F;
-        float fg = 0.8F;
-        float fb = 1.0F;
-        
-        fogColor.clear();
-        fogColor.put(new float[]{
-            (col >> 16 & 0xFF) / 255.0F,
-            (col >> 8 & 0xFF) / 255.0F,
-            (col & 0xFF) / 255.0F,
-            1.0F
-        });
-        fogColor.flip();
-        
-        // OpenGL 初始化
-        glEnable(GL_TEXTURE_2D);
-        glShadeModel(GL_SMOOTH);
-        glClearColor(fr, fg, fb, 0.0F);
-        glClearDepth(1.0);
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LEQUAL);
-        
-        // 初始化游戏组件
-        timer = new Timer(60.0F);
-        level = new Level(256, 256, 64);
-        levelRenderer = new LevelRenderer(level);
-        player = new Player(level);
-        
-        // 检查 OpenGL 错误
-        checkError();
+            System.out.println("[DEBUG] init: GLFW initialized successfully");
+            
+            // 配置 GLFW - 使用更兼容的设置
+            glfwDefaultWindowHints();
+            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+            System.out.println("[DEBUG] init: window hints set");
+            
+            // 创建窗口
+            System.out.println("[DEBUG] init: creating window " + width + "x" + height);
+            window = glfwCreateWindow(width, height, "Voxel Game", NULL, NULL);
+            if (window == NULL) {
+                throw new RuntimeException("Failed to create GLFW window");
+            }
+            System.out.println("[DEBUG] init: window created successfully");
+            
+            // 设置键盘回调
+            glfwSetKeyCallback(window, (win, key, scancode, action, mods) -> {
+                if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+                    glfwSetWindowShouldClose(win, true);
+                }
+            });
+            System.out.println("[DEBUG] init: key callback set");
+            
+            // 设置鼠标输入
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            System.out.println("[DEBUG] init: mouse input mode set");
+            
+            // 创建 OpenGL 上下文
+            System.out.println("[DEBUG] init: making context current");
+            glfwMakeContextCurrent(window);
+            System.out.println("[DEBUG] init: context made current");
+            
+            System.out.println("[DEBUG] init: creating GL capabilities");
+            GL.createCapabilities();
+            System.out.println("[DEBUG] init: GL capabilities created");
+            
+            // 启用垂直同步
+            glfwSwapInterval(1);
+            System.out.println("[DEBUG] init: vsync enabled");
+            
+            // 显示窗口
+            glfwShowWindow(window);
+            System.out.println("[DEBUG] init: window shown");
+            
+            // 设置背景颜色
+            int col = 920330;
+            float fr = 0.5F;
+            float fg = 0.8F;
+            float fb = 1.0F;
+            
+            fogColor.clear();
+            fogColor.put(new float[]{
+                (col >> 16 & 0xFF) / 255.0F,
+                (col >> 8 & 0xFF) / 255.0F,
+                (col & 0xFF) / 255.0F,
+                1.0F
+            });
+            fogColor.flip();
+            System.out.println("[DEBUG] init: fog color set");
+            
+            // OpenGL 初始化
+            System.out.println("[DEBUG] init: setting OpenGL state");
+            glEnable(GL_TEXTURE_2D);
+            glShadeModel(GL_SMOOTH);
+            glClearColor(fr, fg, fb, 0.0F);
+            glClearDepth(1.0);
+            glEnable(GL_DEPTH_TEST);
+            glDepthFunc(GL_LEQUAL);
+            System.out.println("[DEBUG] init: OpenGL state set");
+            
+            // 初始化游戏组件
+            System.out.println("[DEBUG] init: creating Timer");
+            timer = new Timer(60.0F);
+            
+            System.out.println("[DEBUG] init: creating Level (256x256x64)");
+            level = new Level(256, 256, 64);
+            
+            System.out.println("[DEBUG] init: creating LevelRenderer");
+            levelRenderer = new LevelRenderer(level);
+            
+            System.out.println("[DEBUG] init: creating Player");
+            player = new Player(level);
+            
+            // 检查 OpenGL 错误
+            checkError();
+            System.out.println("[DEBUG] init: completed successfully");
+            
+        } catch (Exception e) {
+            System.err.println("[DEBUG] init: FAILED with exception");
+            e.printStackTrace();
+            throw new RuntimeException("Init failed", e);
+        }
     }
     
     public void destroy() {
+        System.out.println("[DEBUG] destroy: start");
         if (level != null) {
             level.save();
+            System.out.println("[DEBUG] destroy: level saved");
         }
         if (window != NULL) {
             glfwFreeCallbacks(window);
             glfwDestroyWindow(window);
+            System.out.println("[DEBUG] destroy: window destroyed");
         }
         glfwTerminate();
+        System.out.println("[DEBUG] destroy: GLFW terminated");
     }
     
     @Override
     public void run() {
+        System.out.println("[DEBUG] run: start");
+        
         try {
+            System.out.println("[DEBUG] run: calling init()");
             init();
+            System.out.println("[DEBUG] run: init() completed successfully");
         } catch (Exception e) {
+            System.err.println("[DEBUG] run: init() failed");
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, e.toString(), "Failed to start Voxel Game", 0);
-            System.exit(0);
+            return;
         }
+        
+        System.out.println("[DEBUG] run: entering main loop");
         
         long lastTime = System.currentTimeMillis();
         int frames = 0;
+        int loopCount = 0;
         
         try {
             while (running && !glfwWindowShouldClose(window)) {
+                loopCount++;
+                if (loopCount % 600 == 0) {
+                    System.out.println("[DEBUG] run: loop iteration " + loopCount);
+                }
+                
                 timer.advanceTime();
                 
                 for (int i = 0; i < timer.ticks; i++) {
@@ -156,7 +216,7 @@ public class VoxelGame implements Runnable {
                 frames++;
                 
                 if (System.currentTimeMillis() >= lastTime + 1000L) {
-                    System.out.println(frames + " fps, " + Chunk.updates);
+                    System.out.println("[DEBUG] " + frames + " fps, " + Chunk.updates);
                     Chunk.updates = 0;
                     lastTime += 1000L;
                     frames = 0;
@@ -168,10 +228,14 @@ public class VoxelGame implements Runnable {
                 }
             }
         } catch (Exception e) {
+            System.err.println("[DEBUG] run: exception in main loop");
             e.printStackTrace();
         } finally {
+            System.out.println("[DEBUG] run: exiting main loop");
             destroy();
         }
+        
+        System.out.println("[DEBUG] run: finished");
     }
     
     public void tick() {
@@ -190,13 +254,17 @@ public class VoxelGame implements Runnable {
         float dx = (float)(mouseX[0] - centerX);
         float dy = (float)(mouseY[0] - centerY);
         
-        player.turn(dx, dy);
+        if (player != null) {
+            player.turn(dx, dy);
+        }
         
         // 重置鼠标位置到中心
         glfwSetCursorPos(window, centerX, centerY);
     }
     
     private void moveCameraToPlayer(float partialTick) {
+        if (player == null) return;
+        
         glTranslatef(0.0F, 0.0F, -0.3F);
         glRotatef(player.xRot, 1.0F, 0.0F, 0.0F);
         glRotatef(player.yRot, 0.0F, 1.0F, 0.0F);
@@ -252,6 +320,8 @@ public class VoxelGame implements Runnable {
     }
     
     private void pick(float partialTick) {
+        if (levelRenderer == null || player == null) return;
+        
         selectBuffer.clear();
         
         // 保存当前状态
@@ -260,9 +330,7 @@ public class VoxelGame implements Runnable {
         setupPickCamera(partialTick, width / 2, height / 2);
         
         // 检测点击的方块
-        if (levelRenderer != null && player != null) {
-            levelRenderer.pick(player);
-        }
+        levelRenderer.pick(player);
         
         int hits = glRenderMode(GL_RENDER);
         
@@ -325,7 +393,7 @@ public class VoxelGame implements Runnable {
         if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
             if (level != null) {
                 level.save();
-                System.out.println("World saved!");
+                System.out.println("[DEBUG] World saved!");
             }
         }
         
@@ -376,7 +444,7 @@ public class VoxelGame implements Runnable {
                 case GL_OUT_OF_MEMORY -> "GL_OUT_OF_MEMORY";
                 default -> "UNKNOWN_ERROR (" + e + ")";
             };
-            System.err.println("OpenGL Error: " + error);
+            System.err.println("[DEBUG] OpenGL Error: " + error);
             if (e == GL_OUT_OF_MEMORY) {
                 throw new IllegalStateException("OpenGL Out of Memory");
             }

@@ -2,12 +2,12 @@ package com.voxelgame;
 
 import com.voxelgame.level.*;
 import com.voxelgame.player.Player;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.MemoryStack;
 
 import javax.swing.*;
-import java.awt.*;
 import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -26,18 +26,23 @@ public class VoxelGame implements Runnable {
     private int width = 1024;
     private int height = 768;
     
-    private final FloatBuffer fogColor = FloatBuffer.allocate(4);
+    // 使用 Direct Buffer (BufferUtils 创建)
+    private final FloatBuffer fogColor = BufferUtils.createFloatBuffer(4);
     private Timer timer;
     private Level level;
     private LevelRenderer levelRenderer;
     private Player player;
-    private final IntBuffer viewportBuffer = IntBuffer.allocate(16);
-    private final IntBuffer selectBuffer = IntBuffer.allocate(2000);
+    private final IntBuffer viewportBuffer = BufferUtils.createIntBuffer(16);
+    private final IntBuffer selectBuffer = BufferUtils.createIntBuffer(2000);
     private HitResult hitResult = null;
     
     private boolean running = true;
     
     public static void main(String[] args) {
+        // 设置系统属性以启用调试
+        System.setProperty("org.lwjgl.util.Debug", "true");
+        System.setProperty("org.lwjgl.system.allocator", "system");
+        
         new Thread(new VoxelGame()).start();
     }
     
@@ -47,10 +52,14 @@ public class VoxelGame implements Runnable {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
         
-        // 配置 GLFW
+        // 配置 GLFW - 使用更兼容的设置
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
         
         // 创建窗口
         window = glfwCreateWindow(width, height, "Voxel Game", NULL, NULL);
@@ -84,6 +93,7 @@ public class VoxelGame implements Runnable {
         float fg = 0.8F;
         float fb = 1.0F;
         
+        fogColor.clear();
         fogColor.put(new float[]{
             (col >> 16 & 0xFF) / 255.0F,
             (col >> 8 & 0xFF) / 255.0F,
@@ -105,10 +115,15 @@ public class VoxelGame implements Runnable {
         level = new Level(256, 256, 64);
         levelRenderer = new LevelRenderer(level);
         player = new Player(level);
+        
+        // 检查 OpenGL 错误
+        checkError();
     }
     
     public void destroy() {
-        level.save();
+        if (level != null) {
+            level.save();
+        }
         if (window != NULL) {
             glfwFreeCallbacks(window);
             glfwDestroyWindow(window);
@@ -121,6 +136,7 @@ public class VoxelGame implements Runnable {
         try {
             init();
         } catch (Exception e) {
+            e.printStackTrace();
             JOptionPane.showMessageDialog(null, e.toString(), "Failed to start Voxel Game", 0);
             System.exit(0);
         }
@@ -145,6 +161,11 @@ public class VoxelGame implements Runnable {
                     lastTime += 1000L;
                     frames = 0;
                 }
+                
+                // 定期检查 OpenGL 错误
+                if (frames % 600 == 0) {
+                    checkError();
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -154,7 +175,9 @@ public class VoxelGame implements Runnable {
     }
     
     public void tick() {
-        player.tick();
+        if (player != null) {
+            player.tick();
+        }
         
         // 处理鼠标输入
         double[] mouseX = new double[1];
@@ -237,19 +260,21 @@ public class VoxelGame implements Runnable {
         setupPickCamera(partialTick, width / 2, height / 2);
         
         // 检测点击的方块
-        levelRenderer.pick(player);
+        if (levelRenderer != null && player != null) {
+            levelRenderer.pick(player);
+        }
         
         int hits = glRenderMode(GL_RENDER);
         
         selectBuffer.flip();
         
-        if (hits > 0) {
+        if (hits > 0 && selectBuffer.remaining() >= 5) {
             // 读取选择结果
             int nameCount = selectBuffer.get();
             long minZ = (long) selectBuffer.get();
             selectBuffer.get(); // 跳过 maxZ
             
-            if (nameCount >= 5) {
+            if (nameCount >= 5 && selectBuffer.remaining() >= 5) {
                 int x = selectBuffer.get();
                 int y = selectBuffer.get();
                 int z = selectBuffer.get();
@@ -265,18 +290,20 @@ public class VoxelGame implements Runnable {
     }
     
     public void render(float partialTick) {
+        if (window == NULL) return;
+        
         // 处理鼠标点击前先进行拾取检测
         pick(partialTick);
         
         // 处理鼠标点击
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-            if (hitResult != null) {
+            if (hitResult != null && level != null) {
                 level.setTile(hitResult.x, hitResult.y, hitResult.z, 0);
             }
         }
         
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-            if (hitResult != null) {
+            if (hitResult != null && level != null) {
                 int x = hitResult.x;
                 int y = hitResult.y;
                 int z = hitResult.z;
@@ -296,7 +323,10 @@ public class VoxelGame implements Runnable {
         
         // 处理键盘输入 - 保存世界
         if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
-            level.save();
+            if (level != null) {
+                level.save();
+                System.out.println("World saved!");
+            }
         }
         
         // 渲染
@@ -312,15 +342,19 @@ public class VoxelGame implements Runnable {
         
         // 渲染不透明物体
         glDisable(GL_FOG);
-        levelRenderer.render(player, 0);
+        if (levelRenderer != null && player != null) {
+            levelRenderer.render(player, 0);
+        }
         
         // 渲染半透明物体
         glEnable(GL_FOG);
-        levelRenderer.render(player, 1);
+        if (levelRenderer != null && player != null) {
+            levelRenderer.render(player, 1);
+        }
         
         glDisable(GL_TEXTURE_2D);
         
-        if (hitResult != null) {
+        if (hitResult != null && levelRenderer != null) {
             levelRenderer.renderHit(hitResult);
         }
         
@@ -333,7 +367,19 @@ public class VoxelGame implements Runnable {
     public static void checkError() {
         int e = glGetError();
         if (e != GL_NO_ERROR) {
-            throw new IllegalStateException("OpenGL Error: " + e);
+            String error = switch (e) {
+                case GL_INVALID_ENUM -> "GL_INVALID_ENUM";
+                case GL_INVALID_VALUE -> "GL_INVALID_VALUE";
+                case GL_INVALID_OPERATION -> "GL_INVALID_OPERATION";
+                case GL_STACK_OVERFLOW -> "GL_STACK_OVERFLOW";
+                case GL_STACK_UNDERFLOW -> "GL_STACK_UNDERFLOW";
+                case GL_OUT_OF_MEMORY -> "GL_OUT_OF_MEMORY";
+                default -> "UNKNOWN_ERROR (" + e + ")";
+            };
+            System.err.println("OpenGL Error: " + error);
+            if (e == GL_OUT_OF_MEMORY) {
+                throw new IllegalStateException("OpenGL Out of Memory");
+            }
         }
     }
 }

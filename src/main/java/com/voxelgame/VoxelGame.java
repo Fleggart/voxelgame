@@ -113,6 +113,20 @@ public class VoxelGame implements Runnable {
             glfwShowWindow(window);
             System.out.println("[DEBUG] init: window shown");
             
+            // ========== 关键修复：强制重置窗口关闭标志 ==========
+            // 在 Android/EGL 环境下，窗口可能被错误标记为 "should close"
+            glfwSetWindowShouldClose(window, false);
+            System.out.println("[DEBUG] init: force reset window shouldClose = false");
+            
+            // 诊断窗口状态
+            int visible = glfwGetWindowAttrib(window, GLFW_VISIBLE);
+            int focused = glfwGetWindowAttrib(window, GLFW_FOCUSED);
+            boolean shouldClose = glfwWindowShouldClose(window);
+            System.out.println("[DEBUG] init: window status - visible=" + visible + 
+                               ", focused=" + focused + 
+                               ", shouldClose=" + shouldClose);
+            // =================================================
+            
             // 设置背景颜色
             int col = 920330;
             float fr = 0.5F;
@@ -193,48 +207,58 @@ public class VoxelGame implements Runnable {
             return;
         }
         
+        // 检查窗口是否有效
+        if (window == NULL) {
+            System.err.println("[DEBUG] run: window is NULL!");
+            return;
+        }
+        
         System.out.println("[DEBUG] run: entering main loop");
+        
+        // 诊断循环条件
+        System.out.println("[DEBUG] run: running=" + running);
+        System.out.println("[DEBUG] run: window=" + window);
+        System.out.println("[DEBUG] run: shouldClose=" + glfwWindowShouldClose(window));
+        
+        // 如果窗口仍然被标记为关闭，再强制重置一次
+        if (glfwWindowShouldClose(window)) {
+            System.err.println("[DEBUG] run: window still marked as shouldClose! Force reset again.");
+            glfwSetWindowShouldClose(window, false);
+            System.out.println("[DEBUG] run: after reset, shouldClose=" + glfwWindowShouldClose(window));
+        }
         
         long lastTime = System.currentTimeMillis();
         int frames = 0;
         int loopCount = 0;
         
-        try {
-            while (running && !glfwWindowShouldClose(window)) {
-                loopCount++;
-                if (loopCount % 600 == 0) {
-                    System.out.println("[DEBUG] run: loop iteration " + loopCount);
-                }
-                
-                timer.advanceTime();
-                
-                for (int i = 0; i < timer.ticks; i++) {
-                    tick();
-                }
-                
-                render(timer.partialTick);
-                frames++;
-                
-                if (System.currentTimeMillis() >= lastTime + 1000L) {
-                    System.out.println("[DEBUG] " + frames + " fps, " + Chunk.updates);
-                    Chunk.updates = 0;
-                    lastTime += 1000L;
-                    frames = 0;
-                }
-                
-                // 定期检查 OpenGL 错误
-                if (frames % 600 == 0) {
-                    checkError();
-                }
+        // 主循环
+        while (running && !glfwWindowShouldClose(window)) {
+            loopCount++;
+            
+            timer.advanceTime();
+            
+            for (int i = 0; i < timer.ticks; i++) {
+                tick();
             }
-        } catch (Exception e) {
-            System.err.println("[DEBUG] run: exception in main loop");
-            e.printStackTrace();
-        } finally {
-            System.out.println("[DEBUG] run: exiting main loop");
-            destroy();
+            
+            render(timer.partialTick);
+            frames++;
+            
+            if (System.currentTimeMillis() >= lastTime + 1000L) {
+                System.out.println("[DEBUG] " + frames + " fps, " + Chunk.updates + ", loop " + loopCount);
+                Chunk.updates = 0;
+                lastTime += 1000L;
+                frames = 0;
+            }
+            
+            // 定期检查 OpenGL 错误
+            if (frames % 600 == 0) {
+                checkError();
+            }
         }
         
+        System.out.println("[DEBUG] run: exiting main loop, shouldClose=" + glfwWindowShouldClose(window) + ", running=" + running);
+        destroy();
         System.out.println("[DEBUG] run: finished");
     }
     

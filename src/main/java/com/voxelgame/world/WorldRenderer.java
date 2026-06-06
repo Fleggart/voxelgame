@@ -1,6 +1,5 @@
 package com.voxelgame.world;
 
-import com.voxelgame.HitResult;
 import com.voxelgame.Player;
 import com.voxelgame.physics.BoundingBox;
 import org.lwjgl.BufferUtils;
@@ -8,7 +7,23 @@ import org.lwjgl.opengl.GL11;
 
 import java.nio.FloatBuffer;
 
-public class WorldRenderer implements WorldListener {
+public class WorldRenderer implements World.WorldListener {
+    
+    // HitResult 作为内部类
+    public static class HitResult {
+        public int x, y, z;
+        public int o;  // 面方向
+        public int f;  // 面索引
+
+        public HitResult(int x, int y, int z, int o, int f) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.o = o;
+            this.f = f;
+        }
+    }
+
     private static final int CHUNK_SIZE = 16;
     private final World world;
     private final Chunk[] chunks;
@@ -49,23 +64,34 @@ public class WorldRenderer implements WorldListener {
         }
     }
 
-    /** 用射线替代过时 picking */
     public HitResult pickRay(Player player, float reach) {
-        float step = 0.1f;
-        BoundingBox bb = player.bb.copy();
-        float dx = - (float) Math.sin(Math.toRadians(player.yRot)) * (float) Math.cos(Math.toRadians(player.xRot));
+        float step = 0.05f;
+        
+        float dx = (float) -Math.sin(Math.toRadians(player.yRot)) * (float) Math.cos(Math.toRadians(player.xRot));
         float dy = (float) Math.sin(Math.toRadians(player.xRot));
         float dz = (float) Math.cos(Math.toRadians(player.yRot)) * (float) Math.cos(Math.toRadians(player.xRot));
 
+        float px = player.pos.x;
+        float py = player.pos.y;
+        float pz = player.pos.z;
+        
+        int lastX = (int) px, lastY = (int) py, lastZ = (int) pz;
+
         for (float t = 0; t < reach; t += step) {
-            int x = (int) (player.pos.x + dx * t);
-            int y = (int) (player.pos.y + dy * t);
-            int z = (int) (player.pos.z + dz * t);
+            int x = (int) (px + dx * t);
+            int y = (int) (py + dy * t);
+            int z = (int) (pz + dz * t);
 
             if (world.isSolidBlock(x, y, z)) {
-                int face = 0; // 简单版本，可扩展
-                return new HitResult(x, y, z, face, 0);
+                // 计算击中面
+                int face = 0;
+                if (lastX != x) face = x > lastX ? 5 : 4;
+                else if (lastY != y) face = y > lastY ? 1 : 0;
+                else if (lastZ != z) face = z > lastZ ? 3 : 2;
+                
+                return new HitResult(x, y, z, face, face);
             }
+            lastX = x; lastY = y; lastZ = z;
         }
         return null;
     }

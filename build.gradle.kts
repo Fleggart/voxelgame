@@ -7,8 +7,8 @@ group = "com.voxelgame"
 version = "1.0.0"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 repositories {
@@ -16,15 +16,24 @@ repositories {
 }
 
 dependencies {
-    // LWJGL 2.x 核心库
-    implementation("org.lwjgl.lwjgl:lwjgl:2.9.3")
-    implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.3")
+    // LWJGL 3
+    val lwjglVersion = "3.3.3"
+    val jomlVersion = "1.10.5"
+    
+    implementation(platform("org.lwjgl:lwjgl-bom:$lwjglVersion"))
+    implementation("org.lwjgl:lwjgl")
+    implementation("org.lwjgl:lwjgl-glfw")
+    implementation("org.lwjgl:lwjgl-opengl")
+    implementation("org.lwjgl:lwjgl-stb")  // 用于图片加载
     
     // JOML 数学库
-    implementation("org.joml:joml:1.10.5")
+    implementation("org.joml:joml:$jomlVersion")
     
-    // Linux 原生库（只需要这个）
-    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux")
+    // Native 库 (Linux)
+    runtimeOnly("org.lwjgl:lwjgl::natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-glfw::natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-opengl::natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-stb::natives-linux")
 }
 
 application {
@@ -33,9 +42,5 @@ application {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-}
-
-// Linux 下不需要手动提取 natives，直接设置 java.library.path 即可
-tasks.named<JavaExec>("run") {
-    systemProperty("java.library.path", System.getProperty("java.library.path"))
+    options.release.set(21)
 }

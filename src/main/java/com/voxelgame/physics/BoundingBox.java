@@ -17,9 +17,11 @@ public class BoundingBox {
         this.z1 = z1;
     }
 
-    // -------------------------
-    // EXPAND（用于 broadphase）
-    // -------------------------
+    // 复制方法
+    public BoundingBox copy() {
+        return new BoundingBox(x0, y0, z0, x1, y1, z1);
+    }
+
     public BoundingBox expand(float xa, float ya, float za) {
         float _x0 = x0, _y0 = y0, _z0 = z0;
         float _x1 = x1, _y1 = y1, _z1 = z1;
@@ -36,9 +38,6 @@ public class BoundingBox {
         return new BoundingBox(_x0, _y0, _z0, _x1, _y1, _z1);
     }
 
-    // -------------------------
-    // GROW（用于 AABB 体积扩展）
-    // -------------------------
     public BoundingBox grow(float xa, float ya, float za) {
         return new BoundingBox(
                 x0 - xa, y0 - ya, z0 - za,
@@ -46,29 +45,18 @@ public class BoundingBox {
         );
     }
 
-    // -------------------------
-    // MOVE
-    // -------------------------
     public void move(float xa, float ya, float za) {
         x0 += xa; y0 += ya; z0 += za;
         x1 += xa; y1 += ya; z1 += za;
     }
 
-    // -------------------------
-    // INTERSECTION
-    // -------------------------
     public boolean intersects(BoundingBox b) {
         return x1 > b.x0 && x0 < b.x1
             && y1 > b.y0 && y0 < b.y1
             && z1 > b.z0 && z0 < b.z1;
     }
 
-    // -------------------------
-    // CORE COLLISION RESOLVE
-    // -------------------------
     private float clip(BoundingBox c, float value, int axis) {
-
-        // 如果在其他轴没有重叠，直接返回
         if (axis != 0 && (c.x1 <= x0 || c.x0 >= x1)) return value;
         if (axis != 1 && (c.y1 <= y0 || c.y0 >= y1)) return value;
         if (axis != 2 && (c.z1 <= z0 || c.z0 >= z1)) return value;
@@ -90,7 +78,6 @@ public class BoundingBox {
 
             if (limit > value) return limit;
         }
-
         return value;
     }
 
@@ -106,9 +93,6 @@ public class BoundingBox {
         return clip(c, za, 2);
     }
 
-    // -------------------------
-    // CENTER (debug / sync use)
-    // -------------------------
     public float centerX() {
         return (x0 + x1) * 0.5f;
     }

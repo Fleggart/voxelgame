@@ -58,7 +58,7 @@ public class VoxelGame implements Runnable {
             throw new RuntimeException("Failed to create GLFW window");
         }
         
-        // 设置键盘和鼠标回调
+        // 设置键盘回调
         glfwSetKeyCallback(window, (win, key, scancode, action, mods) -> {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                 glfwSetWindowShouldClose(win, true);
@@ -216,13 +216,6 @@ public class VoxelGame implements Runnable {
         viewportBuffer.flip();
         
         // 选择模式下的特殊投影
-        double[] modelview = new double[16];
-        double[] projection = new double[16];
-        
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        
-        // 简单实现：使用相同的投影
         float aspect = (float) width / (float) height;
         float top = (float) Math.tan(Math.toRadians(35.0)) * 0.05F;
         float bottom = -top;
@@ -243,20 +236,38 @@ public class VoxelGame implements Runnable {
         
         setupPickCamera(partialTick, width / 2, height / 2);
         
-        // 简化实现：只检测点击的方块
+        // 检测点击的方块
         levelRenderer.pick(player);
         
         int hits = glRenderMode(GL_RENDER);
         
+        selectBuffer.flip();
+        
         if (hits > 0) {
-            // 处理选择结果（简化版）
-            hitResult = new HitResult(0, 0, 0, 0, 0);
+            // 读取选择结果
+            int nameCount = selectBuffer.get();
+            long minZ = (long) selectBuffer.get();
+            selectBuffer.get(); // 跳过 maxZ
+            
+            if (nameCount >= 5) {
+                int x = selectBuffer.get();
+                int y = selectBuffer.get();
+                int z = selectBuffer.get();
+                int side = selectBuffer.get();
+                int face = selectBuffer.get();
+                hitResult = new HitResult(x, y, z, side, face);
+            } else {
+                hitResult = null;
+            }
         } else {
             hitResult = null;
         }
     }
     
     public void render(float partialTick) {
+        // 处理鼠标点击前先进行拾取检测
+        pick(partialTick);
+        
         // 处理鼠标点击
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
             if (hitResult != null) {
@@ -270,7 +281,8 @@ public class VoxelGame implements Runnable {
                 int y = hitResult.y;
                 int z = hitResult.z;
                 
-                switch (hitResult.f) {
+                // 根据面方向添加方块
+                switch (hitResult.face) {
                     case 0 -> y--;
                     case 1 -> y++;
                     case 2 -> z--;
@@ -280,6 +292,11 @@ public class VoxelGame implements Runnable {
                 }
                 level.setTile(x, y, z, 1);
             }
+        }
+        
+        // 处理键盘输入 - 保存世界
+        if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+            level.save();
         }
         
         // 渲染

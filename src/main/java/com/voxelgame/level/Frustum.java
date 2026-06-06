@@ -5,6 +5,8 @@ import java.nio.FloatBuffer;
 import org.lwjgl.BufferUtils;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
 
 public class Frustum {
     private final float[][] frustum = new float[6][4];
@@ -39,8 +41,9 @@ public class Frustum {
         projBuffer.clear();
         modlBuffer.clear();
         
-        glGetFloat(GL_PROJECTION_MATRIX, projBuffer);
-        glGetFloat(GL_MODELVIEW_MATRIX, modlBuffer);
+        // LWJGL 3 的正确用法
+        glGetFloatv(GL_PROJECTION_MATRIX, projBuffer);
+        glGetFloatv(GL_MODELVIEW_MATRIX, modlBuffer);
         
         projBuffer.flip();
         modlBuffer.flip();
@@ -69,36 +72,42 @@ public class Frustum {
         clip[15] = modl[12] * proj[3] + modl[13] * proj[7] + modl[14] * proj[11] + modl[15] * proj[15];
         
         // 提取平面
+        // 右平面
         frustum[0][0] = clip[3] - clip[0];
         frustum[0][1] = clip[7] - clip[4];
         frustum[0][2] = clip[11] - clip[8];
         frustum[0][3] = clip[15] - clip[12];
         normalizePlane(0);
         
+        // 左平面
         frustum[1][0] = clip[3] + clip[0];
         frustum[1][1] = clip[7] + clip[4];
         frustum[1][2] = clip[11] + clip[8];
         frustum[1][3] = clip[15] + clip[12];
         normalizePlane(1);
         
+        // 底平面
         frustum[2][0] = clip[3] + clip[1];
         frustum[2][1] = clip[7] + clip[5];
         frustum[2][2] = clip[11] + clip[9];
         frustum[2][3] = clip[15] + clip[13];
         normalizePlane(2);
         
+        // 顶平面
         frustum[3][0] = clip[3] - clip[1];
         frustum[3][1] = clip[7] - clip[5];
         frustum[3][2] = clip[11] - clip[9];
         frustum[3][3] = clip[15] - clip[13];
         normalizePlane(3);
         
+        // 远平面
         frustum[4][0] = clip[3] - clip[2];
         frustum[4][1] = clip[7] - clip[6];
         frustum[4][2] = clip[11] - clip[10];
         frustum[4][3] = clip[15] - clip[14];
         normalizePlane(4);
         
+        // 近平面
         frustum[5][0] = clip[3] + clip[2];
         frustum[5][1] = clip[7] + clip[6];
         frustum[5][2] = clip[11] + clip[10];

@@ -31,22 +31,31 @@ public class Frustum {
             frustum[side][1] * frustum[side][1] +
             frustum[side][2] * frustum[side][2]
         );
-        frustum[side][0] /= magnitude;
-        frustum[side][1] /= magnitude;
-        frustum[side][2] /= magnitude;
-        frustum[side][3] /= magnitude;
+        if (magnitude != 0) {
+            frustum[side][0] /= magnitude;
+            frustum[side][1] /= magnitude;
+            frustum[side][2] /= magnitude;
+            frustum[side][3] /= magnitude;
+        }
     }
 
     private void calculateFrustum() {
         projBuffer.clear();
         modlBuffer.clear();
         
-        // LWJGL 3 的正确用法
+        // 获取投影矩阵和模型视图矩阵
         glGetFloatv(GL_PROJECTION_MATRIX, projBuffer);
         glGetFloatv(GL_MODELVIEW_MATRIX, modlBuffer);
         
+        // 检查 buffer 是否有足够的数据
         projBuffer.flip();
         modlBuffer.flip();
+        
+        if (projBuffer.remaining() < 16 || modlBuffer.remaining() < 16) {
+            System.err.println("[DEBUG] Frustum: buffer underflow - proj=" + projBuffer.remaining() + ", modl=" + modlBuffer.remaining());
+            return;
+        }
+        
         projBuffer.get(proj);
         modlBuffer.get(modl);
         

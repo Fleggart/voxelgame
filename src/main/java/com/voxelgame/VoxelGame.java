@@ -30,19 +30,16 @@ public class VoxelGame implements Runnable {
     private Player player;
     private ShaderProgram shader;
     
-    // JOML matrices
     private final Matrix4f projectionMatrix = new Matrix4f();
     private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
 
-    // Picking
-    private HitResult hitResult = null;
+    private WorldRenderer.HitResult hitResult = null;
 
     public void init() throws LWJGLException, IOException {
 
-        int col = 0xE0CCFA; // 背景色
+        int col = 0xE0CCFA;
         float fr = 0.5F, fg = 0.8F, fb = 1.0F;
 
-        // 雾颜色
         fogColor = BufferUtils.createFloatBuffer(4);
         fogColor.put(new float[]{
             (float)(col >> 16 & 255) / 255.0F,
@@ -67,7 +64,6 @@ public class VoxelGame implements Runnable {
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
 
-        // Load Shader
         try {
             shader = new ShaderProgram("/vertex.glsl", "/fragment.glsl");
             System.out.println("Shaders loaded successfully");
@@ -77,15 +73,12 @@ public class VoxelGame implements Runnable {
             shader = null;
         }
 
-        // Setup texture unit
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
 
-        // 初始化世界
-        world = new World(256, 256, 64);
+        world = new World(256, 64, 256);  // width, height, depth
         worldRenderer = new WorldRenderer(world);
         player = new Player(world);
 
-        // 初始化投影矩阵
         updateProjectionMatrix();
     }
 
@@ -146,9 +139,10 @@ public class VoxelGame implements Runnable {
     }
 
     private void moveCameraToPlayer(float a) {
-        float x = player.prevPos.x + (player.pos.x - player.prevPos.x) * a;
-        float y = player.prevPos.y + (player.pos.y - player.prevPos.y) * a;
-        float z = player.prevPos.z + (player.pos.z - player.prevPos.z) * a;
+        // 修复: 使用 prev 而不是 prevPos
+        float x = player.prev.x + (player.pos.x - player.prev.x) * a;
+        float y = player.prev.y + (player.pos.y - player.prev.y) * a;
+        float z = player.prev.z + (player.pos.z - player.prev.z) * a;
 
         GL11.glTranslatef(0.0F, 0.0F, -0.3F);
         GL11.glRotatef(player.xRot, 1.0F, 0.0F, 0.0F);
@@ -165,21 +159,15 @@ public class VoxelGame implements Runnable {
         moveCameraToPlayer(a);
     }
 
-    // ===============================
-    // ✅ 新 Picking 方式 (raycast)
-    // ===============================
     public void render(float a) {
-
         float xo = Mouse.getDX();
         float yo = Mouse.getDY();
 
         player.turn(xo, yo);
 
-        // 使用 raycast 代替旧 GL_SELECT
         hitResult = worldRenderer.pickRay(player, 5.0f);
 
         while (Mouse.next()) {
-
             if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && hitResult != null) {
                 world.setBlock(hitResult.x, hitResult.y, hitResult.z, 0);
             }
@@ -218,11 +206,9 @@ public class VoxelGame implements Runnable {
 
         GL11.glEnable(GL11.GL_CULL_FACE);
 
-        // 渲染世界
         worldRenderer.render(player, 0);
         worldRenderer.render(player, 1);
 
-        // 渲染高亮方块
         if (hitResult != null) {
             worldRenderer.renderHit(hitResult);
         }

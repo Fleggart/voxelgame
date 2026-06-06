@@ -11,14 +11,12 @@ public class Player {
 
     private static final float WIDTH = 0.3f;
     private static final float HEIGHT = 0.9f;
-
     private static final float GRAVITY = 0.005f;
     private static final float JUMP = 0.12f;
-
     private static final float GROUND_SPEED = 0.02f;
     private static final float AIR_SPEED = 0.005f;
-
     private static final float EPS = 0.0001f;
+    private static final float MOUSE_SENSITIVITY = 0.15f;
 
     private final World world;
 
@@ -27,7 +25,6 @@ public class Player {
     public final Vector3f vel = new Vector3f();
 
     public BoundingBox bb;
-
     public float yRot, xRot;
     public boolean onGround = false;
 
@@ -37,8 +34,9 @@ public class Player {
     }
 
     public void spawn() {
-        pos.set(world.width / 2f, world.height, world.depth / 2f);
+        pos.set(world.width / 2f, world.height / 2f, world.depth / 2f);
         vel.zero();
+        prev.set(pos);
         updateBB();
     }
 
@@ -47,6 +45,15 @@ public class Player {
                 pos.x - WIDTH, pos.y - HEIGHT, pos.z - WIDTH,
                 pos.x + WIDTH, pos.y + HEIGHT, pos.z + WIDTH
         );
+    }
+
+    public void turn(float dx, float dy) {
+        yRot += dx * MOUSE_SENSITIVITY;
+        xRot -= dy * MOUSE_SENSITIVITY;
+        
+        // 限制垂直视角
+        if (xRot > 90) xRot = 90;
+        if (xRot < -90) xRot = -90;
     }
 
     public void tick() {
@@ -67,19 +74,12 @@ public class Player {
         moveRelative(xa, za, speed);
 
         vel.y -= GRAVITY;
-
         move(vel.x, vel.y, vel.z);
-
         updateBB();
     }
 
-    // =========================
-    // 移动 + 碰撞
-    // =========================
     private void move(float dx, float dy, float dz) {
-
         onGround = false;
-
         List<BoundingBox> boxes = world.getCubes(bb.expand(dx, dy, dz));
 
         // Y
@@ -100,15 +100,14 @@ public class Player {
         bb.move(0, 0, dz);
         if (Math.abs(dz) < EPS) vel.z = 0;
 
-        // sync pos
+        // 同步位置
         pos.x = bb.centerX();
         pos.y = bb.centerY();
         pos.z = bb.centerZ();
 
-        // ground snap（关键）
         if (onGround) {
             vel.y = 0;
-            pos.y = Math.round(pos.y * 1000f) / 1000f;
+            pos.y = (float) Math.round(pos.y * 1000f) / 1000f;
         }
     }
 
@@ -127,9 +126,6 @@ public class Player {
         return dz;
     }
 
-    // =========================
-    // 相对移动
-    // =========================
     private void moveRelative(float xa, float za, float speed) {
         float d = xa * xa + za * za;
         if (d < 0.0001f) return;

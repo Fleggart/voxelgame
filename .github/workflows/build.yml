@@ -22,8 +22,7 @@ jobs:
         with:
           gradle-version: 9.5.1
           cache-disabled: false
-          # 修复: 使用正确的字符串值，不是布尔值
-          gradle-home-cache-cleanup: on-success  # 可选: never, always, on-success
+          gradle-home-cache-cleanup: true   # 使用布尔值 true 或 false
       
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew

@@ -7,8 +7,8 @@ group = "com.voxelgame"
 version = "1.0.0"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 repositories {
@@ -16,24 +16,24 @@ repositories {
 }
 
 dependencies {
-    // LWJGL 3
-    val lwjglVersion = "3.3.3"
-    val jomlVersion = "1.10.5"
+    implementation("org.lwjgl.lwjgl:lwjgl:2.9.3")
+    implementation("org.lwjgl.lwjgl:lwjgl_util:2.9.3")
     
-    implementation(platform("org.lwjgl:lwjgl-bom:$lwjglVersion"))
-    implementation("org.lwjgl:lwjgl")
-    implementation("org.lwjgl:lwjgl-glfw")
-    implementation("org.lwjgl:lwjgl-opengl")
-    implementation("org.lwjgl:lwjgl-stb")  // 用于图片加载
+    // JOML for modern math operations
+    implementation("org.joml:joml:1.10.5")
     
-    // JOML 数学库
-    implementation("org.joml:joml:$jomlVersion")
+    // Native libraries - use classifier for specific platforms
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl:2.9.3") {
+        isTransitive = false
+    }
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl_util:2.9.3") {
+        isTransitive = false
+    }
     
-    // Native 库 (Linux)
-    runtimeOnly("org.lwjgl:lwjgl::natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-glfw::natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-opengl::natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-stb::natives-linux")
+    // Platform-specific native libraries
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-windows")
+    runtimeOnly("org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux")
+    // macOS natives removed - not available in Maven Central
 }
 
 application {
@@ -42,5 +42,19 @@ application {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    options.release.set(21)
+}
+
+// Create a task to extract native libraries
+tasks.register<Copy>("extractNatives") {
+    from(configurations.runtimeClasspath.get().filter { 
+        it.name.contains("natives") 
+    })
+    into("build/libs")
+    includeEmptyDirs = false
+}
+
+// Configure the run task
+tasks.named<JavaExec>("run") {
+    dependsOn("extractNatives")
+    systemProperty("java.library.path", "build/libs")
 }

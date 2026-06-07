@@ -1,98 +1,171 @@
 package com.voxelgame.level;
 
-import java.nio.FloatBuffer;
-import org.lwjgl.BufferUtils;
+import com.voxelgame.HitResult;
+import com.voxelgame.Player;
+import com.voxelgame.phys.AABB;
 import org.lwjgl.opengl.GL11;
 
-public class Tesselator {
-   private static final int MAX_VERTICES = 100000;
-   private FloatBuffer vertexBuffer = BufferUtils.createFloatBuffer(300000);
-   private FloatBuffer texCoordBuffer = BufferUtils.createFloatBuffer(200000);
-   private FloatBuffer colorBuffer = BufferUtils.createFloatBuffer(300000);
-   private int vertices = 0;
-   private float u;
-   private float v;
-   private float r;
-   private float g;
-   private float b;
-   private boolean hasColor = false;
-   private boolean hasTexture = false;
+public class LevelRenderer implements LevelListener {
+   private static final int CHUNK_SIZE = 16;
+   private Level level;
+   private Chunk[] chunks;
+   private int xChunks;
+   private int yChunks;
+   private int zChunks;
+   Tesselator t = new Tesselator();
 
-   public void flush() {
-      this.vertexBuffer.flip();
-      this.texCoordBuffer.flip();
-      this.colorBuffer.flip();
-      GL11.glVertexPointer(3, 0, this.vertexBuffer);
-      if (this.hasTexture) {
-         GL11.glTexCoordPointer(2, 0, this.texCoordBuffer);
+   public LevelRenderer(Level level) {
+      this.level = level;
+      level.addListener(this);
+      this.xChunks = level.width / 16;
+      this.yChunks = level.depth / 16;
+      this.zChunks = level.height / 16;
+      this.chunks = new Chunk[this.xChunks * this.yChunks * this.zChunks];
+
+      for(int x = 0; x < this.xChunks; ++x) {
+         for(int y = 0; y < this.yChunks; ++y) {
+            for(int z = 0; z < this.zChunks; ++z) {
+               int x0 = x * 16;
+               int y0 = y * 16;
+               int z0 = z * 16;
+               int x1 = (x + 1) * 16;
+               int y1 = (y + 1) * 16;
+               int z1 = (z + 1) * 16;
+               if (x1 > level.width) {
+                  x1 = level.width;
+               }
+
+               if (y1 > level.depth) {
+                  y1 = level.depth;
+               }
+
+               if (z1 > level.height) {
+                  z1 = level.height;
+               }
+
+               this.chunks[(x + y * this.xChunks) * this.zChunks + z] = new Chunk(level, x0, y0, z0, x1, y1, z1);
+            }
+         }
       }
 
-      if (this.hasColor) {
-         GL11.glColorPointer(3, 0, this.colorBuffer);
-      }
-
-      GL11.glEnableClientState(32884);
-      if (this.hasTexture) {
-         GL11.glEnableClientState(32888);
-      }
-
-      if (this.hasColor) {
-         GL11.glEnableClientState(32886);
-      }
-
-      GL11.glDrawArrays(7, 0, this.vertices);
-      GL11.glDisableClientState(32884);
-      if (this.hasTexture) {
-         GL11.glDisableClientState(32888);
-      }
-
-      if (this.hasColor) {
-         GL11.glDisableClientState(32886);
-      }
-
-      this.clear();
    }
 
-   private void clear() {
-      this.vertices = 0;
-      this.vertexBuffer.clear();
-      this.texCoordBuffer.clear();
-      this.colorBuffer.clear();
-   }
+   public void render(Player player, int layer) {
+      Chunk.rebuiltThisFrame = 0;
+      Frustum frustum = Frustum.getFrustum();
 
-   public void init() {
-      this.clear();
-      this.hasColor = false;
-      this.hasTexture = false;
-   }
-
-   public void tex(float u, float v) {
-      this.hasTexture = true;
-      this.u = u;
-      this.v = v;
-   }
-
-   public void color(float r, float g, float b) {
-      this.hasColor = true;
-      this.r = r;
-      this.g = g;
-      this.b = b;
-   }
-
-   public void vertex(float x, float y, float z) {
-      this.vertexBuffer.put(this.vertices * 3 + 0, x).put(this.vertices * 3 + 1, y).put(this.vertices * 3 + 2, z);
-      if (this.hasTexture) {
-         this.texCoordBuffer.put(this.vertices * 2 + 0, this.u).put(this.vertices * 2 + 1, this.v);
+      for(int i = 0; i < this.chunks.length; ++i) {
+         if (frustum.cubeInFrustum(this.chunks[i].aabb)) {
+            this.chunks[i].render(layer);
+         }
       }
 
-      if (this.hasColor) {
-         this.colorBuffer.put(this.vertices * 3 + 0, this.r).put(this.vertices * 3 + 1, this.g).put(this.vertices * 3 + 2, this.b);
+   }
+
+   public void pick(Player player) {
+      float r = 3.0F;
+      AABB box = player.bb.grow(r, r, r);
+      int x0 = (int)box.x0;
+      int x1 = (int)(box.x1 + 1.0F);
+      int y0 = (int)box.y0;
+      int y1 = (int)(box.y1 + 1.0F);
+      int z0 = (int)box.z0;
+      int z1 = (int)(box.z1 + 1.0F);
+      GL11.glInitNames();
+
+      for(int x = x0; x < x1; ++x) {
+         GL11.glPushName(x);
+
+         for(int y = y0; y < y1; ++y) {
+            GL11.glPushName(y);
+
+            for(int z = z0; z < z1; ++z) {
+               GL11.glPushName(z);
+               if (this.level.isSolidTile(x, y, z)) {
+                  GL11.glPushName(0);
+
+                  for(int i = 0; i < 6; ++i) {
+                     GL11.glPushName(i);
+                     this.t.init();
+                     Tile.rock.renderFace(this.t, x, y, z, i);
+                     this.t.flush();
+                     GL11.glPopName();
+                  }
+
+                  GL11.glPopName();
+               }
+
+               GL11.glPopName();
+            }
+
+            GL11.glPopName();
+         }
+
+         GL11.glPopName();
       }
 
-      ++this.vertices;
-      if (this.vertices == 100000) {
-         this.flush();
+   }
+
+   public void renderHit(HitResult h) {
+      GL11.glEnable(3042);
+      GL11.glBlendFunc(770, 1);
+      GL11.glColor4f(1.0F, 1.0F, 1.0F, (float)Math.sin((double)System.currentTimeMillis() / (double)100.0F) * 0.2F + 0.4F);
+      this.t.init();
+      Tile.rock.renderFace(this.t, h.x, h.y, h.z, h.f);
+      this.t.flush();
+      GL11.glDisable(3042);
+   }
+
+   public void setDirty(int x0, int y0, int z0, int x1, int y1, int z1) {
+      x0 /= 16;
+      x1 /= 16;
+      y0 /= 16;
+      y1 /= 16;
+      z0 /= 16;
+      z1 /= 16;
+      if (x0 < 0) {
+         x0 = 0;
       }
 
+      if (y0 < 0) {
+         y0 = 0;
+      }
+
+      if (z0 < 0) {
+         z0 = 0;
+      }
+
+      if (x1 >= this.xChunks) {
+         x1 = this.xChunks - 1;
+      }
+
+      if (y1 >= this.yChunks) {
+         y1 = this.yChunks - 1;
+      }
+
+      if (z1 >= this.zChunks) {
+         z1 = this.zChunks - 1;
+      }
+
+      for(int x = x0; x <= x1; ++x) {
+         for(int y = y0; y <= y1; ++y) {
+            for(int z = z0; z <= z1; ++z) {
+               this.chunks[(x + y * this.xChunks) * this.zChunks + z].setDirty();
+            }
+         }
+      }
+
+   }
+
+   public void tileChanged(int x, int y, int z) {
+      this.setDirty(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);
+   }
+
+   public void lightColumnChanged(int x, int z, int y0, int y1) {
+      this.setDirty(x - 1, y0 - 1, z - 1, x + 1, y1 + 1, z + 1);
+   }
+
+   public void allChanged() {
+      this.setDirty(0, 0, 0, this.level.width, this.level.depth, this.level.height);
    }
 }

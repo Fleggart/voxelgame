@@ -1,99 +1,98 @@
 package com.voxelgame.level;
 
-import com.voxelgame.HitResult;
-import com.voxelgame.Player;
-import com.voxelgame.phys.AABB;
-import static org.lwjgl.opengl.GL11.*;
+import java.nio.FloatBuffer;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
 
-public class LevelRenderer implements LevelListener {
-    private static final int CHUNK_SIZE = 16;
-    private Level level;
-    private Chunk[] chunks;
-    private int xChunks, yChunks, zChunks;
-    Tesselator t = new Tesselator();
-    
-    public LevelRenderer(Level level) {
-        this.level = level;
-        level.addListener(this);
-        
-        xChunks = level.width / CHUNK_SIZE;
-        yChunks = level.depth / CHUNK_SIZE;
-        zChunks = level.height / CHUNK_SIZE;
-        chunks = new Chunk[xChunks * yChunks * zChunks];
-        
-        for (int x = 0; x < xChunks; x++) {
-            for (int y = 0; y < yChunks; y++) {
-                for (int z = 0; z < zChunks; z++) {
-                    int x0 = x * CHUNK_SIZE;
-                    int y0 = y * CHUNK_SIZE;
-                    int z0 = z * CHUNK_SIZE;
-                    int x1 = Math.min((x + 1) * CHUNK_SIZE, level.width);
-                    int y1 = Math.min((y + 1) * CHUNK_SIZE, level.depth);
-                    int z1 = Math.min((z + 1) * CHUNK_SIZE, level.height);
-                    chunks[(x + y * xChunks) * zChunks + z] = new Chunk(level, x0, y0, z0, x1, y1, z1);
-                }
-            }
-        }
-    }
-    
-    public void render(Player player, int layer) {
-        Chunk.rebuiltThisFrame = 0;
-        Frustum frustum = Frustum.getFrustum();
-        
-        for (Chunk chunk : chunks) {
-            if (frustum.cubeInFrustum(chunk.aabb)) {
-                chunk.render(layer);
-            }
-        }
-    }
-    
-    public void renderHit(HitResult h) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        glColor4f(1.0f, 1.0f, 1.0f, (float) Math.sin(System.currentTimeMillis() / 100.0) * 0.2f + 0.4f);
-        t.init();
-        Tile.rock.renderFace(t, h.x, h.y, h.z, h.f);
-        t.flush();
-        glDisable(GL_BLEND);
-    }
-    
-    private void setDirty(int x0, int y0, int z0, int x1, int y1, int z1) {
-        x0 /= CHUNK_SIZE;
-        x1 /= CHUNK_SIZE;
-        y0 /= CHUNK_SIZE;
-        y1 /= CHUNK_SIZE;
-        z0 /= CHUNK_SIZE;
-        z1 /= CHUNK_SIZE;
-        
-        x0 = Math.max(0, x0);
-        y0 = Math.max(0, y0);
-        z0 = Math.max(0, z0);
-        x1 = Math.min(xChunks - 1, x1);
-        y1 = Math.min(yChunks - 1, y1);
-        z1 = Math.min(zChunks - 1, z1);
-        
-        for (int x = x0; x <= x1; x++) {
-            for (int y = y0; y <= y1; y++) {
-                for (int z = z0; z <= z1; z++) {
-                    chunks[(x + y * xChunks) * zChunks + z].setDirty();
-                }
-            }
-        }
-    }
-    
-    @Override
-    public void tileChanged(int x, int y, int z) {
-        level.chunkUpdates++;
-        setDirty(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);
-    }
-    
-    @Override
-    public void lightColumnChanged(int x, int z, int y0, int y1) {
-        setDirty(x - 1, y0 - 1, z - 1, x + 1, y1 + 1, z + 1);
-    }
-    
-    @Override
-    public void allChanged() {
-        setDirty(0, 0, 0, level.width, level.depth, level.height);
-    }
+public class Tesselator {
+   private static final int MAX_VERTICES = 100000;
+   private FloatBuffer vertexBuffer = BufferUtils.createFloatBuffer(300000);
+   private FloatBuffer texCoordBuffer = BufferUtils.createFloatBuffer(200000);
+   private FloatBuffer colorBuffer = BufferUtils.createFloatBuffer(300000);
+   private int vertices = 0;
+   private float u;
+   private float v;
+   private float r;
+   private float g;
+   private float b;
+   private boolean hasColor = false;
+   private boolean hasTexture = false;
+
+   public void flush() {
+      this.vertexBuffer.flip();
+      this.texCoordBuffer.flip();
+      this.colorBuffer.flip();
+      GL11.glVertexPointer(3, 0, this.vertexBuffer);
+      if (this.hasTexture) {
+         GL11.glTexCoordPointer(2, 0, this.texCoordBuffer);
+      }
+
+      if (this.hasColor) {
+         GL11.glColorPointer(3, 0, this.colorBuffer);
+      }
+
+      GL11.glEnableClientState(32884);
+      if (this.hasTexture) {
+         GL11.glEnableClientState(32888);
+      }
+
+      if (this.hasColor) {
+         GL11.glEnableClientState(32886);
+      }
+
+      GL11.glDrawArrays(7, 0, this.vertices);
+      GL11.glDisableClientState(32884);
+      if (this.hasTexture) {
+         GL11.glDisableClientState(32888);
+      }
+
+      if (this.hasColor) {
+         GL11.glDisableClientState(32886);
+      }
+
+      this.clear();
+   }
+
+   private void clear() {
+      this.vertices = 0;
+      this.vertexBuffer.clear();
+      this.texCoordBuffer.clear();
+      this.colorBuffer.clear();
+   }
+
+   public void init() {
+      this.clear();
+      this.hasColor = false;
+      this.hasTexture = false;
+   }
+
+   public void tex(float u, float v) {
+      this.hasTexture = true;
+      this.u = u;
+      this.v = v;
+   }
+
+   public void color(float r, float g, float b) {
+      this.hasColor = true;
+      this.r = r;
+      this.g = g;
+      this.b = b;
+   }
+
+   public void vertex(float x, float y, float z) {
+      this.vertexBuffer.put(this.vertices * 3 + 0, x).put(this.vertices * 3 + 1, y).put(this.vertices * 3 + 2, z);
+      if (this.hasTexture) {
+         this.texCoordBuffer.put(this.vertices * 2 + 0, this.u).put(this.vertices * 2 + 1, this.v);
+      }
+
+      if (this.hasColor) {
+         this.colorBuffer.put(this.vertices * 3 + 0, this.r).put(this.vertices * 3 + 1, this.g).put(this.vertices * 3 + 2, this.b);
+      }
+
+      ++this.vertices;
+      if (this.vertices == 100000) {
+         this.flush();
+      }
+
+   }
 }

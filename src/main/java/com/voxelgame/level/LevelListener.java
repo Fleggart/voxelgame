@@ -1,7 +1,9 @@
 package com.voxelgame.level;
 
 public interface LevelListener {
-    void tileChanged(int x, int y, int z);
-    void lightColumnChanged(int x, int z, int y0, int y1);
-    void allChanged();
+   void tileChanged(int var1, int var2, int var3);
+
+   void lightColumnChanged(int var1, int var2, int var3, int var4);
+
+   void allChanged();
 }
